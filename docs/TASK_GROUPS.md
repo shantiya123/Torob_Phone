@@ -5,8 +5,9 @@ This is a planning baseline, not a commitment. Priorities and boundaries should 
 ## Phase 1 — Foundation
 
 - [x] TG-001: Repository foundation and architecture baseline
+- [x] TG-002: Canonical data architecture and database design
 - [ ] Establish reproducible dependency and environment configuration.
-- [ ] Define the first Django domain app boundaries after approving the product-data scope.
+- [x] TG-003: Implement the catalog app, migrations, and validated import boundary.
 
 ## Phase 2 — Product Data Model
 

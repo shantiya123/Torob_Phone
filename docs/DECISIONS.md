@@ -40,3 +40,61 @@ Create canonical root-level `AGENTS.md`, `RULES.md`, and `WORKFLOW.md`. Preserve
 ### Consequences
 
 Future work should follow the root-level documents and maintain the focused architecture, decision, and roadmap documents under `docs/`.
+
+## Decision: Separate source evidence from canonical catalog facts
+
+**Date:** 2026-07-19
+
+### Context
+
+`data/clean_data.json` contains a useful normalized GSMArena dataset, but it has incomplete values, source-derived booleans, ambiguous lifecycle dates, and fields that may vary by product variant. It is not a stable database schema.
+
+### Decision
+
+Use an import ledger and source-record evidence layer alongside a typed relational catalog. Keep products, variants, specifications, benchmark measurements, store offers, and rebuildable derived recommendation features separate.
+
+### Alternatives considered
+
+- Store each cleaned record as one JSON document and query it directly.
+- Use a generic entity-attribute-value table for all specifications.
+- Flatten all source fields into a single product table.
+
+### Reason
+
+The selected design preserves provenance and supports evolving sources while keeping deterministic filtering and ranking queryable, typed, and explainable.
+
+### Consequences
+
+The future importer must validate and map data deliberately. It cannot equate missing source matches with false capabilities or assume an ambiguous source date is a release date.
+
+## Decision: Preserve ambiguous negative parser outputs as unknown
+
+**Date:** 2026-07-19
+
+### Context
+
+The approved normalized dataset represents several capability fields as booleans, but the normalizer emits `false` when its source-text pattern is absent. That does not establish that the product lacks the capability.
+
+### Decision
+
+The importer maps positive boolean signals to `True` and parser-generated negative signals to `NULL`. It preserves the original source value in `CanonicalFieldEvidence` with ambiguous confidence.
+
+### Consequences
+
+Filtering can safely require an explicit `True`, while an unknown value cannot be falsely presented as a verified absence. A future importer using stronger source evidence may populate verified `False` values.
+
+## Decision: Preserve plus signs in canonical model identity
+
+**Date:** 2026-07-19
+
+### Context
+
+The first import attempt showed that punctuation-only normalization merged distinct source models such as `Galaxy S26` and `Galaxy S26+`.
+
+### Decision
+
+The deterministic model-key normalizer expands `+` to the word `plus` before punctuation normalization.
+
+### Consequences
+
+The database unique constraint remains effective without merging models whose meaningful names differ by a plus suffix.

@@ -26,27 +26,38 @@ Torob_Phone/
 `- WORKFLOW.md               Task Group workflow
 ```
 
-There are no Django application packages, models, migrations, serializers, views beyond Django admin routing, templates, static assets, API packages, test modules, or product-domain modules.
+The `catalog` Django application implements the first product-domain layer. It contains canonical catalog models, its initial migration, an import management command, and catalog tests. There are still no application API endpoints, serializers, templates, static assets, search, recommendation, LLM, store, offer, or price-history modules.
 
 ### Request and data flow
 
-The only configured route is `/admin/`, delegated to Django’s built-in admin site. No application data flow has been implemented. With the default database configuration, Django framework tables will be created in SQLite only after migrations are run; no `db.sqlite3` file is currently tracked or present.
+The only configured route is `/admin/`, delegated to Django’s built-in admin site. The implemented catalog flow is:
+
+```text
+data/clean_data.json
+    -> python manage.py import_catalog
+    -> ImportRun and SourceRecord provenance
+    -> validated typed catalog records
+```
+
+The importer writes `DataSource`, `Brand`, `DeviceModel`, `DeviceVariant`, typed specification profiles, camera systems/lenses, benchmark measurements, and `CanonicalFieldEvidence`. It is idempotent for unchanged source identities. The database is SQLite and is now populated locally through the Django migrations and import command; `db.sqlite3` remains an untracked local development artifact.
 
 ### Database and external integrations
 
-SQLite is suitable for this empty, local-development baseline. There is no environment-specific database configuration, no dependency declaration, and no external service, LLM, scraping, search, or data-provider integration.
+SQLite remains suitable for this local-development baseline. There is no environment-specific database configuration, dependency declaration, external service integration, LLM integration, search system, or API. The repository includes source collection/normalization scripts and the approved `data/clean_data.json` dataset; the importer treats that file as source evidence, not the canonical query surface.
 
 ### Testing and validation
 
-No tests or testing-tool configuration are present. Django’s built-in test runner is usable and currently discovers zero tests. No linting or type-checking configuration was found.
+The `catalog` app has a Django test suite covering dataset loading, idempotency, null handling, feature phones, duplicate source URLs, invalid optional data, variant uniqueness, and versionless benchmark measurements. Django’s built-in test runner is used; no linting or type-checking configuration was found.
 
 ### Architectural boundaries already present
 
-The project package owns configuration and routing only. Future business functionality should be added in dedicated Django apps rather than placed in `Torob_Phone/settings.py` or the root URL module. The existing project is a healthy Django starter, but it is not yet an application architecture.
+The project package owns configuration and routing only. The `catalog` app owns persisted product facts and their import/provenance boundary. Future business functionality should be added in dedicated Django apps rather than placed in `Torob_Phone/settings.py`, the root URL module, or the catalog importer.
 
 ## PLANNED / FUTURE
 
-The repository contains no implementation for the intended product catalog, specifications, store offers, normalization, search, deterministic filtering/ranking, explanations, LLM interpretation, or conversation.
+The repository has no implementation for store offers, search, deterministic filtering/ranking, explanations, LLM interpretation, or conversation. It has implemented only the catalog foundation and source-file import boundary.
+
+TG-002 defines the canonical data design in `docs/CANONICAL_DATA_ARCHITECTURE.md`. TG-003 implements its catalog, typed specifications, source provenance, and import portions; commercial offers and derived recommendation features remain future work.
 
 When approved in future Task Groups, these concerns should be introduced incrementally in dedicated modules/apps with clear boundaries:
 
