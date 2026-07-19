@@ -41,6 +41,8 @@ data/clean_data.json
 
 The importer writes `DataSource`, `Brand`, `DeviceModel`, `DeviceVariant`, typed specification profiles, camera systems/lenses, benchmark measurements, and `CanonicalFieldEvidence`. It is idempotent for unchanged source identities. The database is SQLite and is now populated locally through the Django migrations and import command; `db.sqlite3` remains an untracked local development artifact.
 
+The `catalog.filtering` module provides internal, deterministic hard-constraint filtering. It accepts a typed `FilterRequirements` object and returns neutral-order `DeviceVariant` candidates. Variant requirements (RAM and storage) are applied directly to a configuration; model-level requirements join the relevant canonical specification profile. It starts from available, catalog-eligible variants, so an unconstrained request does not introduce feature phones into the smartphone candidate pool.
+
 ### Database and external integrations
 
 SQLite remains suitable for this local-development baseline. There is no environment-specific database configuration, dependency declaration, external service integration, LLM integration, search system, or API. The repository includes source collection/normalization scripts and the approved `data/clean_data.json` dataset; the importer treats that file as source evidence, not the canonical query surface.
@@ -55,9 +57,11 @@ The project package owns configuration and routing only. The `catalog` app owns 
 
 ## PLANNED / FUTURE
 
-The repository has no implementation for store offers, search, deterministic filtering/ranking, explanations, LLM interpretation, or conversation. It has implemented only the catalog foundation and source-file import boundary.
+The repository has no implementation for store offers, search, scoring/ranking, explanations, LLM interpretation, or conversation. It implements catalog import and deterministic hard-constraint filtering only.
 
 TG-002 defines the canonical data design in `docs/CANONICAL_DATA_ARCHITECTURE.md`. TG-003 implements its catalog, typed specifications, source provenance, and import portions; commercial offers and derived recommendation features remain future work.
+
+The filtering layer supports identity, variant, performance, display, battery, camera, connectivity, physical, and software constraints defined by `FilterRequirements`. A specified constraint requires a known matching value: `NULL` never satisfies numeric, boolean, or categorical hard constraints. Wi-Fi and IP-rating constraints use explicit ordered comparators, while the returned ordering is not a recommendation ranking.
 
 When approved in future Task Groups, these concerns should be introduced incrementally in dedicated modules/apps with clear boundaries:
 

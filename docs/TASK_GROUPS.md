@@ -26,7 +26,7 @@ This is a planning baseline, not a commitment. Priorities and boundaries should 
 
 ## Phase 5 — Deterministic Recommendation Engine
 
-- [ ] Implement hard-constraint filtering.
+- [x] TG-004: Implement hard-constraint filtering.
 - [ ] Implement deterministic scoring, ranking, and data-backed explanations.
 
 ## Phase 6 — Search

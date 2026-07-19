@@ -98,3 +98,19 @@ The deterministic model-key normalizer expands `+` to the word `plus` before pun
 ### Consequences
 
 The database unique constraint remains effective without merging models whose meaningful names differ by a plus suffix.
+
+## Decision: Hard filtering returns eligible device variants
+
+**Date:** 2026-07-19
+
+### Context
+
+RAM and storage belong to a `DeviceVariant`; the remaining currently supported requirements belong to the parent `DeviceModel` and its typed specification profiles. Returning models would incorrectly imply that every configuration satisfies a variant-level requirement.
+
+### Decision
+
+The filtering service starts from available, catalog-eligible `DeviceVariant` rows and applies every supplied requirement with AND semantics. It returns a neutral, deterministic order only; it does not score or rank candidates.
+
+### Consequences
+
+One device model may occur more than once when multiple configurations satisfy constraints. `NULL` is excluded by any specified hard constraint. Wi-Fi and IP-rating requirements use explicit comparison rules rather than lexical ordering.
