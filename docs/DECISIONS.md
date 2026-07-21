@@ -114,3 +114,19 @@ The filtering service starts from available, catalog-eligible `DeviceVariant` ro
 ### Consequences
 
 One device model may occur more than once when multiple configurations satisfy constraints. `NULL` is excluded by any specified hard constraint. Wi-Fi and IP-rating requirements use explicit comparison rules rather than lexical ordering.
+
+## Decision: Treat LLM output as untrusted QuerySet input
+
+**Date:** 2026-07-21
+
+### Context
+
+Natural-language modification must be stateful without allowing an LLM to query the catalog, infer facts, or bypass deterministic hard constraints.
+
+### Decision
+
+Use a stable, strictly validated QuerySet contract. The stateful service replaces its current QuerySet only after provider output passes JSON/schema validation, canonical normalization, and adaptation to supported `FilterRequirements`. Unsupported non-null fields raise an error; they are never silently dropped.
+
+### Consequences
+
+The LLM remains an input translation layer. State is currently held in process memory by the internal service; a future HTTP/conversation layer must explicitly decide how to persist or scope it. Price, benchmark, source, and other unsupported criteria cannot claim to have been applied.

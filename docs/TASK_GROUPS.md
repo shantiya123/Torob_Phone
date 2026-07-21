@@ -35,8 +35,8 @@ This is a planning baseline, not a commitment. Priorities and boundaries should 
 
 ## Phase 7 — LLM Integration
 
-- [ ] Introduce an LLM abstraction only after deterministic contracts exist.
-- [ ] Interpret natural-language preferences into validated structured intent.
+- [x] TG-005: Introduce a stateful LLM query-modification abstraction over deterministic filtering.
+- [ ] Interpret natural-language preferences into broader validated structured intent.
 
 ## Phase 8 — Conversational Experience
 

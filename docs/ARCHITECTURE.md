@@ -57,11 +57,13 @@ The project package owns configuration and routing only. The `catalog` app owns 
 
 ## PLANNED / FUTURE
 
-The repository has no implementation for store offers, search, scoring/ranking, explanations, LLM interpretation, or conversation. It implements catalog import and deterministic hard-constraint filtering only.
+The repository has no implementation for store offers, search, scoring/ranking, explanations, or a user-facing conversation/API. It implements catalog import, deterministic hard-constraint filtering, and an internal LLM query-translation boundary only.
 
 TG-002 defines the canonical data design in `docs/CANONICAL_DATA_ARCHITECTURE.md`. TG-003 implements its catalog, typed specifications, source provenance, and import portions; commercial offers and derived recommendation features remain future work.
 
 The filtering layer supports identity, variant, performance, display, battery, camera, connectivity, physical, and software constraints defined by `FilterRequirements`. A specified constraint requires a known matching value: `NULL` never satisfies numeric, boolean, or categorical hard constraints. Wi-Fi and IP-rating constraints use explicit ordered comparators, while the returned ordering is not a recommendation ranking.
+
+`catalog.query_service.QuerySetModificationService` holds the latest validated QuerySet in process memory and routes it through a strict validator, normalizer, adapter, and the existing filter. `catalog.llm_provider.GapGptProvider` is a GapGpt-compatible client configured only through `GAPGPT_API_KEY`, `GAPGPT_BASE_URL`, and `GAPGPT_MODEL`. It has no database access and does not select products. The full support/unsupported matrix is documented in `docs/QUERY_SET_SUPPORT.md`.
 
 When approved in future Task Groups, these concerns should be introduced incrementally in dedicated modules/apps with clear boundaries:
 
