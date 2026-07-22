@@ -65,6 +65,8 @@ The filtering layer supports identity, variant, performance, display, battery, c
 
 `catalog.query_service.QuerySetModificationService` holds the latest validated QuerySet in process memory and routes it through a strict validator, normalizer, adapter, and the existing filter. `catalog.llm_provider.GapGptProvider` is a GapGpt-compatible client configured only through `GAPGPT_API_KEY`, `GAPGPT_BASE_URL`, and `GAPGPT_MODEL`. It has no database access and does not select products. The full support/unsupported matrix is documented in `docs/QUERY_SET_SUPPORT.md`.
 
+For local manual testing, `interactive_catalog_search.py` starts an in-memory console loop over this same service. It accepts credentials as command-line parameters, displays the validated QuerySet and matching variants after each prompt, and offers local `/state`, `/reset`, and `/quit` commands.
+
 When approved in future Task Groups, these concerns should be introduced incrementally in dedicated modules/apps with clear boundaries:
 
 ```text
