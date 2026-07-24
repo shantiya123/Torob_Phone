@@ -13,6 +13,16 @@ environment-configured. GapGPT is an optional query-interpretation boundary:
 when unavailable, search filters the supplied validated QuerySet (or an empty
 one) deterministically and returns a warning.
 
+## TG-008 personalized explanation (2026-07-24)
+
+Authenticated searches persist each user's latest strictly validated QuerySet
+in a small catalog-owned record. `POST /api/search/reset/` replaces that
+state with the all-null template. `GET /api/catalog/phones/<id>/explanation/`
+uses the same saved QuerySet to produce a transient Persian explanation for a
+catalog variant. It sends only a dedicated, reduced product payload and the
+lowest available price to the existing GapGPT client. Explanations are never
+stored; provider failure returns a non-fatal error response.
+
 **Baseline date:** 2026-07-18
 
 ## CURRENTLY IMPLEMENTED

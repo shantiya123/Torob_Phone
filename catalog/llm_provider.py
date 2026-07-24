@@ -33,6 +33,23 @@ class GapGptProvider:
         self.backoff = backoff
 
     def modify(self, current_query_set, user_request):
+        content = self._request_content(
+            FULL_QUERY_MODIFICATION_PROMPT,
+            {"current_query_set": current_query_set, "user_request": user_request},
+        )
+        try:
+            return validate_query_set(json.loads(content))
+        except (json.JSONDecodeError, QuerySetValidationError) as exc:
+            raise LLMProviderError(f"GapGpt returned an invalid QuerySet: {exc}") from exc
+
+    def generate_explanation(self, system_prompt, payload):
+        """Use the existing client for untrusted, non-persistent text output."""
+        content = self._request_content(system_prompt, payload)
+        if not isinstance(content, str) or not content.strip():
+            raise LLMProviderError("GapGpt returned an empty response")
+        return content.strip()
+
+    def _request_content(self, system_prompt, user_payload):
         if not self.api_key:
             raise LLMProviderError("GAPGPT_API_KEY is not configured")
         if not self.model:
@@ -41,8 +58,8 @@ class GapGptProvider:
             "model": self.model,
             "temperature": 0,
             "messages": [
-                {"role": "system", "content": FULL_QUERY_MODIFICATION_PROMPT},
-                {"role": "user", "content": json.dumps({"current_query_set": current_query_set, "user_request": user_request})},
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(user_payload)},
             ],
         }).encode("utf-8")
         request = Request(
@@ -69,9 +86,4 @@ class GapGptProvider:
             # Do not log the request, URL query string, response body, or API key.
             logger.warning("GapGpt request attempt %s/%s failed; retrying.", attempt + 1, self.retries + 1)
             time.sleep(self.backoff * (2 ** attempt))
-        if not isinstance(content, str) or not content.strip():
-            raise LLMProviderError("GapGpt returned an empty response")
-        try:
-            return validate_query_set(json.loads(content))
-        except (json.JSONDecodeError, QuerySetValidationError) as exc:
-            raise LLMProviderError(f"GapGpt returned an invalid QuerySet: {exc}") from exc
+        return content

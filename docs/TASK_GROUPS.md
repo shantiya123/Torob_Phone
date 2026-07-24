@@ -1,6 +1,7 @@
 # Task Groups Roadmap
 
 - [x] TG-007: Backend stabilization, security, and integration.
+- [x] TG-008: AI personalized phone explanation and saved search intent.
 
 This is a planning baseline, not a commitment. Priorities and boundaries should be revised as real product and operational requirements emerge.
 

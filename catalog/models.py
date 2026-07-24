@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.db.models import Q
 
 
@@ -259,3 +260,17 @@ class BenchmarkMeasurement(models.Model):
             ),
             models.CheckConstraint(condition=Q(score__gte=0), name="benchmark_score_nonnegative"),
         ]
+
+
+class UserQuerySet(models.Model):
+    """The latest validated search filters for one authenticated user.
+
+    This stores filter intent only. It is deliberately separate from catalog
+    facts and never stores LLM output other than the validated QuerySet.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="saved_query_set"
+    )
+    query_set = models.JSONField()
+    updated_at = models.DateTimeField(auto_now=True)

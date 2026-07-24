@@ -1,5 +1,17 @@
 # Architecture Decisions
 
+## Decision: Persist validated search intent separately from catalog facts
+
+**Date:** 2026-07-24
+
+The latest QuerySet is stored once per authenticated user after strict
+validation. This enables continuous search refinement and a later
+personalized explanation without modifying product models or making the LLM
+the source of truth. The reset endpoint stores the all-null QuerySet.
+
+AI explanations remain generated on demand, are not persisted, and receive a
+reduced product payload plus the saved filter only.
+
 ## Decision: Cancellation returns inventory, not funds
 
 **Date:** 2026-07-24
