@@ -29,6 +29,9 @@ class BasketItem(models.Model):
     basket = models.ForeignKey(Basket, on_delete=models.CASCADE, related_name="items")
     offer = models.ForeignKey(Offer, on_delete=models.CASCADE, related_name="basket_items")
     quantity = models.PositiveIntegerField(default=1)
+    # The initial migration and serializer contract already persist this
+    # purchase-time snapshot; keep the model state aligned with both.
+    unit_price = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

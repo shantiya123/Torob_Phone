@@ -1,5 +1,18 @@
 # Architecture Baseline
 
+## TG-007 backend stabilization (2026-07-24)
+
+Offer writes require an active store. Basket deletion locks the basket item
+and offer before returning reserved stock. Checkout produces order-item price
+snapshots; cancellation locks the order and referenced offers, restores stock
+once, and never recreates basket items or wallet transactions.
+
+Wallet endpoints are read-only and scoped to the authenticated user. The API
+also exposes an OpenAPI schema and Swagger UI. Django security settings are
+environment-configured. GapGPT is an optional query-interpretation boundary:
+when unavailable, search filters the supplied validated QuerySet (or an empty
+one) deterministically and returns a warning.
+
 **Baseline date:** 2026-07-18
 
 ## CURRENTLY IMPLEMENTED
@@ -30,7 +43,13 @@ The `catalog` Django application implements the first product-domain layer. It c
 
 ### Request and data flow
 
-The only configured route is `/admin/`, delegated to Django’s built-in admin site. The implemented catalog flow is:
+The root URL configuration exposes Django Admin at `/admin/` and the TG-006
+REST API under `/api/`. The API provides JWT authentication, account and
+store self-service, natural-language catalog search, device detail, public
+and owner-scoped offer access, basket reservation, and customer/store order
+views. List and search results use bounded page-number pagination.
+
+The implemented catalog import flow is:
 
 ```text
 data/clean_data.json
@@ -57,7 +76,12 @@ The project package owns configuration and routing only. The `catalog` app owns 
 
 ## PLANNED / FUTURE
 
-The repository has no implementation for store offers, search, scoring/ranking, explanations, or a user-facing conversation/API. It implements catalog import, deterministic hard-constraint filtering, and an internal LLM query-translation boundary only.
+The repository has no scoring/ranking engine, generated recommendation
+explanations, payment integration, or general conversational interface. It
+implements catalog import, deterministic hard-constraint filtering, an LLM
+query-translation boundary, and the documented TG-006 HTTP API. Search
+ordering is deterministic and separate from filtering; it is not a
+recommendation score.
 
 TG-002 defines the canonical data design in `docs/CANONICAL_DATA_ARCHITECTURE.md`. TG-003 implements its catalog, typed specifications, source provenance, and import portions; commercial offers and derived recommendation features remain future work.
 

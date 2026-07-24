@@ -37,4 +37,20 @@ The querySet represents filtering requirements, not a phone. Therefore:
 Brand & Model Handling:
 - Normalize brand names to their standard English capitalization (e.g., "سامسونگ" -> "Samsung", "شیائومی" -> "Xiaomi", "پوکو" -> "Poco", "آیفون" / "اپل" -> "Apple") unless specified otherwise.
 
-Return only JSON with exactly the same schema as current_query_set."""
+Return only JSON with exactly the same schema as current_query_set.
+OUTPUT REQUIREMENTS:
+
+Return ONLY the modified QuerySet object.
+
+The root object MUST contain exactly these fields:
+brand, model, release_date, source, performance, display, battery,
+camera, connectivity, physical, software, benchmarks, price.
+
+Do NOT return an object containing current_query_set.
+Do NOT return user_request.
+Do NOT wrap the QuerySet in another object.
+Do NOT include Markdown or code fences.
+Do NOT include explanations.
+
+
+"""

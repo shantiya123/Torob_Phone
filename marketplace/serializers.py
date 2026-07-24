@@ -187,7 +187,7 @@ class OfferListSerializer(serializers.ModelSerializer):
     """Represents an offer in a list of offers for a DeviceVariant. See 7.1."""
 
     store = StorePublicListSerializer(read_only=True)
-    available = serializers.BooleanField(read_only=True)
+    available = serializers.BooleanField(source="is_available", read_only=True)
 
     class Meta:
         model = Offer
@@ -204,7 +204,7 @@ class OfferDetailSerializer(serializers.ModelSerializer):
 
     store = StorePublicListSerializer(read_only=True)
     device_variant = DeviceVariantListSerializer(read_only=True)
-    available = serializers.BooleanField(read_only=True)
+    available = serializers.BooleanField(source="is_available", read_only=True)
 
     class Meta:
         model = Offer
@@ -253,6 +253,8 @@ class OfferCreateSerializer(serializers.ModelSerializer):
         store = getattr(store, "store", None) if store else None
         if store is None:
             raise serializers.ValidationError("Only an authenticated store account can create offers.")
+        if store.status != Store.Status.ACTIVE:
+            raise serializers.ValidationError("Only an active store can create offers.")
         if Offer.objects.filter(store=store, device_variant=attrs["device_variant"]).exists():
             raise serializers.ValidationError(
                 {"device_variant": "This store already has an offer for this device variant."}

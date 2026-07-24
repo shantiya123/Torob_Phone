@@ -1,7 +1,10 @@
 """GapGpt-compatible OpenAI chat-completions provider."""
 
 import json
+import logging
 import os
+import socket
+import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -13,12 +16,21 @@ class LLMProviderError(RuntimeError):
     pass
 
 
+class LLMProviderTimeoutError(LLMProviderError):
+    pass
+
+
+logger = logging.getLogger(__name__)
+
+
 class GapGptProvider:
-    def __init__(self, api_key=None, base_url=None, model=None, timeout=20):
+    def __init__(self, api_key=None, base_url=None, model=None, timeout=20, retries=2, backoff=0.25):
         self.api_key = api_key if api_key is not None else os.getenv("GAPGPT_API_KEY")
         self.base_url = (base_url if base_url is not None else os.getenv("GAPGPT_BASE_URL", "https://api.gapgpt.app/v1")).rstrip("/")
         self.model = model if model is not None else os.getenv("GAPGPT_MODEL")
         self.timeout = timeout
+        self.retries = retries
+        self.backoff = backoff
 
     def modify(self, current_query_set, user_request):
         if not self.api_key:
@@ -37,12 +49,26 @@ class GapGptProvider:
             f"{self.base_url}/chat/completions", data=body,
             headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}, method="POST",
         )
-        try:
-            with urlopen(request, timeout=self.timeout) as response:
-                payload = json.loads(response.read().decode("utf-8"))
-            content = payload["choices"][0]["message"]["content"]
-        except (HTTPError, URLError, TimeoutError, KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
-            raise LLMProviderError(f"GapGpt request failed: {exc}") from exc
+        last_error = None
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                content = payload["choices"][0]["message"]["content"]
+                break
+            except (TimeoutError, socket.timeout) as exc:
+                last_error = exc
+                error_class = LLMProviderTimeoutError
+            except (HTTPError, URLError) as exc:
+                last_error = exc
+                error_class = LLMProviderError
+            except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+                raise LLMProviderError("GapGpt returned an invalid response.") from exc
+            if attempt == self.retries:
+                raise error_class("GapGpt request timed out." if error_class is LLMProviderTimeoutError else "GapGpt request failed.") from last_error
+            # Do not log the request, URL query string, response body, or API key.
+            logger.warning("GapGpt request attempt %s/%s failed; retrying.", attempt + 1, self.retries + 1)
+            time.sleep(self.backoff * (2 ** attempt))
         if not isinstance(content, str) or not content.strip():
             raise LLMProviderError("GapGpt returned an empty response")
         try:

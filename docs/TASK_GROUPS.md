@@ -1,5 +1,7 @@
 # Task Groups Roadmap
 
+- [x] TG-007: Backend stabilization, security, and integration.
+
 This is a planning baseline, not a commitment. Priorities and boundaries should be revised as real product and operational requirements emerge.
 
 ## Phase 1 — Foundation
@@ -41,6 +43,10 @@ This is a planning baseline, not a commitment. Priorities and boundaries should 
 ## Phase 8 — Conversational Experience
 
 - [ ] Add a conversational interface around the validated search and recommendation capabilities.
+
+## API Delivery
+
+- [x] TG-006: Implement the documented DRF API views, JWT authentication, permissions, pagination, and routing.
 
 ## Phase 9 — Testing and Integration
 

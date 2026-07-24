@@ -34,7 +34,14 @@ from .query_set import QuerySetValidationError, validate_query_set
 # Phase 6 (Search) has not defined its ordering contract yet. These are the
 # two values illustrated in docs/Serializers.md 9.1; extend deliberately, not
 # by inference, once the real search requirements are written.
-SEARCH_ORDERING_CHOICES = ("price_asc", "price_desc", "newest")
+SEARCH_ORDERING_CHOICES = (
+    "price_asc",
+    "price_desc",
+    "newest",
+    "oldest",
+    "battery_high",
+    "battery_low",
+)
 
 
 class DeviceVariantListSerializer(serializers.ModelSerializer):
@@ -214,7 +221,7 @@ class SearchRequestSerializer(serializers.Serializer):
     database field names or ordering expressions are never accepted.
     """
 
-    message = serializers.CharField(allow_blank=False)
+    message = serializers.CharField(required=False, allow_blank=False)
     query_set = serializers.JSONField(required=False, allow_null=True, default=None)
     ordering = serializers.ChoiceField(choices=SEARCH_ORDERING_CHOICES, required=False, default="newest")
 
@@ -225,6 +232,13 @@ class SearchRequestSerializer(serializers.Serializer):
             return validate_query_set(value)
         except QuerySetValidationError as exc:
             raise serializers.ValidationError(str(exc))
+
+    def validate(self, attrs):
+        if not attrs.get("message") and attrs.get("query_set") is None:
+            raise serializers.ValidationError(
+                "Provide a message for a search or query_set to re-sort existing results."
+            )
+        return attrs
 
 
 class SearchResultSerializer(DeviceVariantListSerializer):
@@ -242,7 +256,13 @@ class SearchResultSerializer(DeviceVariantListSerializer):
         read_only_fields = fields
 
     def get_minimum_available_price(self, instance):
+        annotated_price = getattr(instance, "minimum_available_price", None)
+        if annotated_price is not None:
+            return annotated_price
         cheapest = (
-            instance.offers.filter(quantity__gt=0).order_by("price").values_list("price", flat=True).first()
+            instance.offers.filter(quantity__gt=0, store__status="active")
+            .order_by("price")
+            .values_list("price", flat=True)
+            .first()
         )
         return cheapest

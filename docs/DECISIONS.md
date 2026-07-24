@@ -1,5 +1,14 @@
 # Architecture Decisions
 
+## Decision: Cancellation returns inventory, not funds
+
+**Date:** 2026-07-24
+
+Cancellation atomically restores `OrderItem` quantities to their offers only
+when a pending or paid order first becomes cancelled. It does not recreate
+basket items or create wallet refund transactions because checkout currently
+does not debit a wallet or process payment.
+
 ## Decision: Preserve the generated Django baseline
 
 **Date:** 2026-07-18

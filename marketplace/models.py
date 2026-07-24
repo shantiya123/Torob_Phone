@@ -11,6 +11,7 @@ class Store(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         ACTIVE = "active", "Active"
+        SUSPENDED = "suspended", "Suspended"
         REJECTED = "rejected", "Rejected"
 
     account_profile = models.OneToOneField(
