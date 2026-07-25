@@ -17,6 +17,14 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _env_bool(name, default=False):
+    return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_list(name):
+    return [value.strip() for value in os.getenv(name, "").split(",") if value.strip()]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -24,9 +32,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-development-only-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DJANGO_DEBUG', 'true').strip().lower() in {'1', 'true', 'yes', 'on'}
+DJANGO_ENV = os.getenv("DJANGO_ENV", "development").strip().lower()
+DEBUG = _env_bool('DJANGO_DEBUG', True)
 
-ALLOWED_HOSTS = [host.strip() for host in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
+ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS')
 
 
 # Application definition
@@ -40,6 +49,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'drf_spectacular',
+    'corsheaders',
+    'rest_framework_simplejwt.token_blacklist',
     'catalog',
     'accounts',
     'marketplace',
@@ -50,6 +61,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -82,12 +94,31 @@ WSGI_APPLICATION = 'Torob_Phone.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DB_ENGINE = os.getenv("DB_ENGINE", "").strip().lower()
+if not DB_ENGINE:
+    if DJANGO_ENV in {"production", "staging"}:
+        raise RuntimeError("DB_ENGINE=postgresql is required when DJANGO_ENV is staging or production.")
+    DB_ENGINE = "sqlite"
+
+if DB_ENGINE == "postgresql":
+    required_db_values = ("DB_NAME", "DB_USER", "DB_PASSWORD", "DB_HOST")
+    missing_db_values = [name for name in required_db_values if not os.getenv(name)]
+    if missing_db_values:
+        raise RuntimeError(f"PostgreSQL requires: {', '.join(missing_db_values)}.")
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ["DB_NAME"],
+            "USER": os.environ["DB_USER"],
+            "PASSWORD": os.environ["DB_PASSWORD"],
+            "HOST": os.environ["DB_HOST"],
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
     }
-}
+elif DB_ENGINE == "sqlite":
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+else:
+    raise RuntimeError("DB_ENGINE must be either 'postgresql' or 'sqlite'.")
 
 
 # Password validation
@@ -142,3 +173,29 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+
+SPECTACULAR_SETTINGS = {
+    "ENUM_NAME_OVERRIDES": {
+        "OrderStatusEnum": "shopping.models.Order.Status",
+    },
+}
+
+SIMPLE_JWT = {
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+}
+
+JWT_REFRESH_COOKIE_NAME = os.getenv("JWT_REFRESH_COOKIE_NAME", "torob_phone_refresh")
+JWT_REFRESH_COOKIE_SECURE = _env_bool("JWT_REFRESH_COOKIE_SECURE", DJANGO_ENV in {"production", "staging"})
+JWT_REFRESH_COOKIE_SAMESITE = os.getenv("JWT_REFRESH_COOKIE_SAMESITE", "Lax").strip().capitalize()
+if JWT_REFRESH_COOKIE_SAMESITE not in {"Lax", "Strict", "None"}:
+    raise RuntimeError("JWT_REFRESH_COOKIE_SAMESITE must be Lax, Strict, or None.")
+if JWT_REFRESH_COOKIE_SAMESITE == "None" and not JWT_REFRESH_COOKIE_SECURE:
+    raise RuntimeError("JWT_REFRESH_COOKIE_SECURE must be true when SameSite=None.")
+JWT_REFRESH_COOKIE_DOMAIN = os.getenv("JWT_REFRESH_COOKIE_DOMAIN", "").strip() or None
+JWT_REFRESH_COOKIE_PATH = os.getenv("JWT_REFRESH_COOKIE_PATH", "/api/auth/").strip() or "/api/auth/"
+
+CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS")
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = _env_list("CSRF_TRUSTED_ORIGINS")
+JWT_AUTH_TRUSTED_ORIGINS = set(CORS_ALLOWED_ORIGINS + CSRF_TRUSTED_ORIGINS)

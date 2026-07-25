@@ -2,6 +2,11 @@
 
 - [x] TG-007: Backend stabilization, security, and integration.
 - [x] TG-008: AI personalized phone explanation and saved search intent.
+- [x] TG-009: Torobche conversational backend contract.
+- [x] TG-010: Customer orders frontend contract.
+- [x] TG-011: Minimal phone image support.
+- [x] TG-012: Store catalog browsing API.
+- [x] TG-013: PostgreSQL readiness and secure HttpOnly JWT authentication.
 
 This is a planning baseline, not a commitment. Priorities and boundaries should be revised as real product and operational requirements emerge.
 

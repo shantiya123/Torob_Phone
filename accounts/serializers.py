@@ -21,6 +21,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from django.utils.text import slugify
+from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import AccountProfile
@@ -188,13 +189,36 @@ class CurrentUserSerializer(serializers.ModelSerializer):
     this serializer at all, so they cannot be modified through it.
     """
 
-    account_type = serializers.CharField(source="account_profile.account_type", read_only=True)
-    created_at = serializers.DateTimeField(source="account_profile.created_at", read_only=True)
+    account_type = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = ["id", "username", "email", "account_type", "created_at"]
         read_only_fields = ["id", "username", "account_type", "created_at"]
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_account_type(self, instance):
+        profile = getattr(instance, "account_profile", None)
+        return profile.account_type if profile is not None else None
+
+    @extend_schema_field(OpenApiTypes.DATETIME)
+    def get_created_at(self, instance):
+        profile = getattr(instance, "account_profile", None)
+        return profile.created_at if profile is not None else None
+
+
+class AccessTokenResponseSerializer(serializers.Serializer):
+    access = serializers.CharField(read_only=True)
+
+
+class RefreshCookieErrorSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    detail = serializers.CharField()
+
+
+class LogoutResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
 
 
 class AccountProfileSerializer(serializers.ModelSerializer):

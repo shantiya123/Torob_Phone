@@ -9,7 +9,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .query_prompt import FULL_QUERY_MODIFICATION_PROMPT
-from .query_set import QuerySetValidationError, validate_query_set
+from .provider_response import ProviderResponseError, parse_provider_query_response
 
 
 class LLMProviderError(RuntimeError):
@@ -38,9 +38,9 @@ class GapGptProvider:
             {"current_query_set": current_query_set, "user_request": user_request},
         )
         try:
-            return validate_query_set(json.loads(content))
-        except (json.JSONDecodeError, QuerySetValidationError) as exc:
-            raise LLMProviderError(f"GapGpt returned an invalid QuerySet: {exc}") from exc
+            return parse_provider_query_response(content)
+        except ProviderResponseError as exc:
+            raise LLMProviderError(str(exc)) from exc
 
     def generate_explanation(self, system_prompt, payload):
         """Use the existing client for untrusted, non-persistent text output."""

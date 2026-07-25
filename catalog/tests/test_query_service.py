@@ -73,7 +73,7 @@ class QuerySetContractTests(SimpleTestCase):
     def test_gapgpt_invalid_json_response_is_rejected_without_a_real_request(self):
         class Response:
             def read(self):
-                return b'{"choices": [{"message": {"content": "not json"}}]}'
+                return b'{"choices": [{"message": {"content": "{\\\"message\\\": \\\"x\\\", \\\"queryset\\\": {}}"}}]}'
 
             def __enter__(self):
                 return self

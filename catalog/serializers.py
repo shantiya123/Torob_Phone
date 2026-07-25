@@ -17,12 +17,14 @@ never through a client-facing write API.
 """
 
 from rest_framework import serializers
+from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 
 from .models import (
     BatterySpec,
     BenchmarkMeasurement,
     CameraSystem,
     ConnectivitySpec,
+    DeviceModel,
     DeviceVariant,
     DisplaySpec,
     PerformanceSpec,
@@ -50,6 +52,7 @@ class DeviceVariantListSerializer(serializers.ModelSerializer):
     brand = serializers.CharField(source="device_model.brand.name", read_only=True)
     model_name = serializers.CharField(source="device_model.model_name", read_only=True)
     device_kind = serializers.CharField(source="device_model.device_kind", read_only=True)
+    image_url = serializers.URLField(source="device_model.image_url", read_only=True, allow_null=True)
 
     class Meta:
         model = DeviceVariant
@@ -58,11 +61,35 @@ class DeviceVariantListSerializer(serializers.ModelSerializer):
             "brand",
             "model_name",
             "device_kind",
+            "image_url",
             "storage_gb",
             "ram_gb",
             "storage_technology",
             "is_available",
         ]
+        read_only_fields = fields
+
+
+class StoreCatalogPhoneSerializer(serializers.ModelSerializer):
+    """Small parent-phone representation for the Store catalog browser."""
+
+    brand = serializers.CharField(source="brand.name", read_only=True)
+    model = serializers.CharField(source="model_name", read_only=True)
+    release_date = serializers.DateField(source="released_on", read_only=True, allow_null=True)
+
+    class Meta:
+        model = DeviceModel
+        fields = ["id", "brand", "model", "image_url", "release_date"]
+        read_only_fields = fields
+
+
+class StoreCatalogPhoneDetailSerializer(StoreCatalogPhoneSerializer):
+    """Store catalog phone with the offerable, available configurations."""
+
+    variants = DeviceVariantListSerializer(many=True, read_only=True)
+
+    class Meta(StoreCatalogPhoneSerializer.Meta):
+        fields = StoreCatalogPhoneSerializer.Meta.fields + ["variants"]
         read_only_fields = fields
 
 
@@ -144,6 +171,7 @@ class DeviceVariantDetailSerializer(serializers.ModelSerializer):
     device_kind = serializers.CharField(source="device_model.device_kind", read_only=True)
     announced_on = serializers.DateField(source="device_model.announced_on", read_only=True)
     released_on = serializers.DateField(source="device_model.released_on", read_only=True)
+    image_url = serializers.URLField(source="device_model.image_url", read_only=True, allow_null=True)
 
     performance = serializers.SerializerMethodField()
     displays = serializers.SerializerMethodField()
@@ -163,6 +191,7 @@ class DeviceVariantDetailSerializer(serializers.ModelSerializer):
             "device_kind",
             "announced_on",
             "released_on",
+            "image_url",
             "storage_gb",
             "ram_gb",
             "storage_technology",
@@ -255,6 +284,7 @@ class SearchResultSerializer(DeviceVariantListSerializer):
         fields = DeviceVariantListSerializer.Meta.fields + ["minimum_available_price"]
         read_only_fields = fields
 
+    @extend_schema_field(OpenApiTypes.INT)
     def get_minimum_available_price(self, instance):
         annotated_price = getattr(instance, "minimum_available_price", None)
         if annotated_price is not None:
@@ -266,3 +296,39 @@ class SearchResultSerializer(DeviceVariantListSerializer):
             .first()
         )
         return cheapest
+
+
+class TorobcheSearchResponseSerializer(serializers.Serializer):
+    """Public conversational search response, retaining DRF pagination fields."""
+
+    message = serializers.CharField()
+    queryset = serializers.JSONField()
+    query_set = serializers.JSONField(required=False)
+    count = serializers.IntegerField()
+    next = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    results = SearchResultSerializer(many=True)
+    ordering = serializers.CharField()
+    warning = serializers.CharField(required=False, allow_null=True)
+    warning_code = serializers.CharField(required=False, allow_null=True)
+
+
+class TorobcheStateResponseSerializer(serializers.Serializer):
+    queryset = serializers.JSONField()
+    query_set = serializers.JSONField(required=False)
+    has_active_filters = serializers.BooleanField()
+    updated_at = serializers.DateTimeField(allow_null=True)
+
+
+class TorobcheResetResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    queryset = serializers.JSONField()
+    query_set = serializers.JSONField(required=False)
+
+
+class ExplanationResponseSerializer(serializers.Serializer):
+    phone_id = serializers.IntegerField(required=False)
+    description = serializers.CharField(allow_null=True, required=False)
+    error = serializers.CharField(required=False)
+    code = serializers.CharField(required=False)
+    detail = serializers.CharField(required=False)

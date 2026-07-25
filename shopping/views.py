@@ -3,6 +3,7 @@ from django.db.models import F
 from rest_framework import generics, status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
 
 from api_pagination import StandardResultsSetPagination
 from api_permissions import IsCustomer, IsStoreOwner, user_store
@@ -16,7 +17,9 @@ from .serializers import (
     BasketItemUpdateSerializer,
     BasketSerializer,
     OrderCreateSerializer,
+    OrderCancellationResponseSerializer,
     OrderSerializer,
+    OrderSummarySerializer,
 )
 
 
@@ -26,7 +29,10 @@ class MyBasketView(generics.RetrieveAPIView):
 
     def get_object(self):
         basket, _ = Basket.objects.get_or_create(user=self.request.user)
-        return Basket.objects.prefetch_related("items__offer__store").get(pk=basket.pk)
+        return Basket.objects.prefetch_related(
+            "items__offer__store",
+            "items__offer__device_variant__device_model__brand",
+        ).get(pk=basket.pk)
 
 
 class BasketItemCreateView(generics.CreateAPIView):
@@ -79,17 +85,50 @@ class BasketItemDeleteView(BasketItemUpdateView):
     """Named TG-006 view; DELETE shares the basket-item detail endpoint."""
 
 
+@extend_schema_view(
+    get=extend_schema(parameters=[
+        OpenApiParameter(
+            name="status", type=OpenApiTypes.STR,
+            description="Filter by pending, paid, cancelled, or completed.",
+        )
+    ], responses=OrderSummarySerializer(many=True)),
+    post=extend_schema(request=None, responses=OrderSummarySerializer(many=True)),
+)
 class MyOrderListView(generics.ListCreateAPIView):
     permission_classes = [IsCustomer]
     pagination_class = StandardResultsSetPagination
 
     def get_serializer_class(self):
-        return OrderCreateSerializer if self.request.method == "POST" else OrderSerializer
+        return OrderCreateSerializer if self.request.method == "POST" else OrderSummarySerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            if "code" in serializer.errors and serializer.errors["code"][0] == "basket_empty":
+                return Response(
+                    {"code": "basket_empty", "detail": "The basket is empty."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            raise ValidationError(serializer.errors)
+        orders = serializer.save()
+        # Checkout is intentionally one-to-many (one Order per store), so the
+        # established response is a bare list rather than a single resource.
+        return Response(
+            OrderSummarySerializer(orders, many=True, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def get_queryset(self):
-        return Order.objects.prefetch_related("items__offer__store").filter(
+        queryset = Order.objects.select_related("store").prefetch_related("items").filter(
             basket__user=self.request.user
-        ).order_by("-created_at", "-pk")
+        )
+        requested_status = self.request.query_params.get("status")
+        if requested_status is not None:
+            valid_statuses = {value for value, _label in Order.Status.choices}
+            if requested_status not in valid_statuses:
+                raise ValidationError({"status": "Invalid order status."})
+            queryset = queryset.filter(status=requested_status)
+        return queryset.order_by("-created_at", "-pk")
 
 
 class OrderCreateView(MyOrderListView):
@@ -101,14 +140,18 @@ class OrderDetailView(generics.RetrieveAPIView):
     serializer_class = OrderSerializer
 
     def get_queryset(self):
-        return Order.objects.prefetch_related("items__offer__store").filter(basket__user=self.request.user)
+        return Order.objects.select_related("store").prefetch_related(
+            "items__offer__device_variant__device_model__brand"
+        ).filter(basket__user=self.request.user)
 
 
 class OrderCancelView(generics.GenericAPIView):
     """Cancel an order and restore reserved stock exactly once."""
 
+    permission_classes = [IsCustomer]
     serializer_class = OrderSerializer
 
+    @extend_schema(request=None, responses=OrderCancellationResponseSerializer)
     def post(self, request, pk):
         try:
             order = Order.objects.select_related("basket").get(pk=pk)
@@ -119,7 +162,10 @@ class OrderCancelView(generics.GenericAPIView):
         try:
             order, restored = cancel_order(order.pk)
         except OrderCancellationError as exc:
-            raise ValidationError(str(exc)) from exc
+            raise ValidationError({
+                "code": "order_not_cancellable",
+                "detail": "This order cannot be cancelled in its current state.",
+            }) from exc
         return Response({
             "order": OrderSerializer(order, context=self.get_serializer_context()).data,
             "stock_restored": restored,

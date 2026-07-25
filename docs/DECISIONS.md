@@ -1,5 +1,50 @@
 # Architecture Decisions
 
+## Decision: Keep access tokens in memory and refresh tokens in HttpOnly cookies
+
+**Date:** 2026-07-25
+
+Login and refresh return access tokens only. Refresh tokens use an environment-configured, narrowly scoped HttpOnly cookie; SimpleJWT rotates and blacklists them. This preserves existing Bearer authorization while preventing frontend JavaScript from reading refresh credentials. Refresh/logout use exact origin allowlists for browser requests; cross-origin deployments require explicit HTTPS and cookie/CORS configuration.
+
+## Decision: PostgreSQL is required outside lightweight development
+
+**Date:** 2026-07-25
+
+The settings use explicit `DB_*` configuration for PostgreSQL and permit SQLite only when selected for development. Staging and production fail fast without PostgreSQL configuration, avoiding an accidental SQLite deployment. No project migration is necessary for the engine change.
+
+## Decision: Store one nullable parent-model image URL
+
+**Date:** 2026-07-25
+
+The collector already receives GSMArena listing-card image URLs but discarded
+them. `DeviceModel.image_url` is the smallest durable place to retain that
+optional value. Variants expose the parent's URL; no variant image field,
+runtime scrape, media service, or gallery was introduced.
+
+## Decision: Keep checkout's multi-order response as a bare array
+
+**Date:** 2026-07-24
+
+Checkout can create one order per store. The endpoint retains its existing
+bare-array response for compatibility, but each entry is now a documented
+order summary containing public store identity, historical total, and item
+count. The frontend confirmation page should use this response directly.
+
+Order items reference protected offers and retain their own unit-price
+snapshot. Presentation must use that snapshot, never a mutable offer price.
+
+## Decision: Treat the Torobche wrapper as an outer provider contract
+
+**Date:** 2026-07-24
+
+GapGPT conversational output is a two-key wrapper: `message` and `queryset`.
+Only the nested `queryset` enters the established strict validation,
+persistence, and deterministic filtering pipeline. A bad conversational
+message uses a safe fallback while retaining a valid QuerySet; an invalid
+QuerySet never overwrites the prior saved state.
+
+The durable backend state is the latest validated QuerySet, not a transcript.
+
 ## Decision: Persist validated search intent separately from catalog facts
 
 **Date:** 2026-07-24
@@ -151,3 +196,19 @@ Use a stable, strictly validated QuerySet contract. The stateful service replace
 ### Consequences
 
 The LLM remains an input translation layer. State is currently held in process memory by the internal service; a future HTTP/conversation layer must explicitly decide how to persist or scope it. Price, benchmark, source, and other unsupported criteria cannot claim to have been applied.
+
+## Decision: Store catalog browsing uses parent phones but selects variants
+
+**Date:** 2026-07-25
+
+### Context
+
+Store offer creation needs an operational browser that is independent of conversational search. Offers reference `DeviceVariant`, while a browser is easier to navigate by parent `DeviceModel`.
+
+### Decision
+
+Expose catalog-eligible parent phones through Store-only, read-only list and detail endpoints. The detail endpoint returns available variants using the existing compact variant representation. Non-staff Store users may browse; customers, anonymous users, and staff may not. No Store offer state is included.
+
+### Consequences
+
+The frontend can browse a stable, paginated parent catalog and then submit a selected variant to the existing offer flow. The catalog endpoint remains independent of Torobche, QuerySet state, ranking, and marketplace offer data.

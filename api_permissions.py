@@ -28,11 +28,29 @@ class IsCustomer(BasePermission):
         )
 
 
+class IsStaffUser(BasePermission):
+    """Allow Django Staff users without requiring an AccountProfile."""
+
+    message = "Only staff users may perform this action."
+
+    def has_permission(self, request, view):
+        return bool(request.user.is_authenticated and request.user.is_staff)
+
+
 class IsStoreOwner(BasePermission):
     message = "Only store accounts may perform this action."
 
     def has_permission(self, request, view):
         return user_store(request.user) is not None
+
+
+class IsStoreCatalogUser(IsStoreOwner):
+    """Allow the operational catalog browser only to non-staff store users."""
+
+    message = "Only non-staff store accounts may browse the store catalog."
+
+    def has_permission(self, request, view):
+        return not getattr(request.user, "is_staff", False) and super().has_permission(request, view)
 
 
 class IsApprovedStore(IsStoreOwner):
@@ -47,3 +65,21 @@ class OwnsOffer(IsStoreOwner):
     def has_object_permission(self, request, view, obj):
         store = user_store(request.user)
         return store is not None and obj.store_id == store.id
+
+
+class IsTorobcheUser(BasePermission):
+    """Customers and store accounts may use Torobche; staff may not."""
+
+    message = "Only customer or store accounts may use Torobche."
+
+    def has_permission(self, request, view):
+        profile = getattr(request.user, "account_profile", None)
+        return bool(
+            request.user.is_authenticated
+            and not request.user.is_staff
+            and profile is not None
+            and profile.account_type in {
+                AccountProfile.AccountType.CUSTOMER,
+                AccountProfile.AccountType.STORE,
+            }
+        )

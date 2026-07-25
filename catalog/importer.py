@@ -330,6 +330,9 @@ def import_record(import_run, record):
     warnings = []
     brand_name = _required_text(record, "brand")
     model_name = _required_text(record, "model")
+    image_url = record.get("image_url")
+    if image_url is not None and (not isinstance(image_url, str) or not _valid_url(image_url.strip())):
+        raise RecordValidationError("image_url must be an absolute HTTP(S) URL or null")
     source_name = _required_text(record, "source", "name")
     source_url = _required_text(record, "source", "url")
     if not _valid_url(source_url):
@@ -348,17 +351,20 @@ def import_record(import_run, record):
             slug=normalize_key(brand_name), defaults={"name": brand_name}
         )
         device_kind = _classify_device_kind(record)
+        model_defaults = {
+            "model_name": model_name,
+            "device_kind": device_kind,
+            "is_catalog_eligible": device_kind == DeviceModel.DeviceKind.SMARTPHONE,
+            "announced_on": None,
+            "released_on": None,
+            "availability_status": None,
+        }
+        if image_url:
+            model_defaults["image_url"] = image_url.strip()
         device_model, model_created = DeviceModel.objects.update_or_create(
             brand=brand,
             model_key=normalize_key(model_name),
-            defaults={
-                "model_name": model_name,
-                "device_kind": device_kind,
-                "is_catalog_eligible": device_kind == DeviceModel.DeviceKind.SMARTPHONE,
-                "announced_on": None,
-                "released_on": None,
-                "availability_status": None,
-            },
+            defaults=model_defaults,
         )
         source_record.device_model = device_model
         source_record.save(update_fields=["device_model", "observed_at"])

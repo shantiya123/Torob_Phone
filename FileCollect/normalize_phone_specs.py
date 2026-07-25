@@ -325,6 +325,7 @@ def normalize_phone(entry: dict) -> dict:
     return {
         "brand": brand,
         "model": model,
+        "image_url": entry.get("image_url"),
         "release_date": parse_release_date(specs),
         "source": {
             "name": "GSMArena",

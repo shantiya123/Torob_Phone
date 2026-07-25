@@ -114,11 +114,17 @@ def crawl_brand(session, brand_name, brand_id, pages=PAGES_PER_BRAND, max_items=
                 continue
             img = a.select_one("img")
             quick_spec_text = img.get("title") if img else None
+            image_url = img.get("src") if img else None
+            if image_url and image_url.startswith("//"):
+                image_url = "https:" + image_url
+            elif image_url and not image_url.startswith(("http://", "https://")):
+                image_url = "https://www.gsmarena.com/" + image_url.lstrip("/")
             results.append({
                 "brand": brand_name,
                 "model": name,
                 "source_url": url_full,
                 "quick_spec_raw": quick_spec_text,
+                "image_url": image_url,
             })
             if max_items and len(results) >= max_items:
                 print(f"  [{brand_name} p{page}] hit target ({max_items}), stopping early")
@@ -284,6 +290,7 @@ def main():
                 rec = parse_full_spec_page(session, p["source_url"])
                 rec["brand"] = p["brand"]
                 rec["source_url"] = p["source_url"]
+                rec["image_url"] = p.get("image_url")
                 full_records.append(rec)
             except Exception as e:
                 print(f"  ERROR: {e}")

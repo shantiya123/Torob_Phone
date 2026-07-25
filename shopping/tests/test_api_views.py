@@ -140,6 +140,7 @@ class ApiViewTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_existing_query_set_can_be_sorted_without_an_llm_call(self):
+        self.client.force_authenticate(self.customer)
         response = self.client.post(
             reverse("search"),
             {"query_set": empty_query_set(), "ordering": "price_asc"},
@@ -150,3 +151,72 @@ class ApiViewTestCase(APITestCase):
         self.assertEqual(response.data["query_set"], empty_query_set())
         self.assertEqual(response.data["results"][0]["id"], self.variant.pk)
         self.assertEqual(response.data["results"][0]["minimum_available_price"], 900)
+
+    def make_order(self, owner=None, order_status=Order.Status.PENDING, quantity=2, unit_price=900):
+        basket, _ = Basket.objects.get_or_create(user=owner or self.customer)
+        order = Order.objects.create(basket=basket, store=self.store, status=order_status)
+        OrderItem.objects.create(order=order, offer=self.offer, quantity=quantity, unit_price=unit_price)
+        return order
+
+    def test_customer_order_list_has_historical_summary_and_status_filtering(self):
+        pending = self.make_order()
+        self.make_order(order_status=Order.Status.PAID)
+        self.offer.price = 5000
+        self.offer.save()
+        self.client.force_authenticate(self.customer)
+
+        response = self.client.get(reverse("my-order-list"), {"status": Order.Status.PENDING})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        summary = response.data["results"][0]
+        self.assertEqual(summary["id"], pending.pk)
+        self.assertEqual(summary["store"], {"id": self.store.pk, "name": self.store.name})
+        self.assertEqual(summary["item_count"], 2)
+        self.assertEqual(summary["total"], 1800)
+        self.assertEqual(self.client.get(reverse("my-order-list"), {"status": "invalid"}).status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_order_detail_uses_snapshot_price_and_variant_identity(self):
+        order = self.make_order(quantity=1, unit_price=900)
+        self.offer.price = 9999
+        self.offer.save()
+        self.client.force_authenticate(self.customer)
+        response = self.client.get(reverse("order-detail", args=[order.pk]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        item = response.data["items"][0]
+        self.assertEqual(item["unit_price"], 900)
+        self.assertEqual(item["line_total"], 900)
+        self.assertEqual(item["offer"], self.offer.pk)
+        self.assertEqual(item["variant"]["id"], self.variant.pk)
+        self.assertEqual(item["variant"]["brand"], "Example")
+
+    def test_store_and_staff_cannot_access_customer_orders(self):
+        order = self.make_order()
+        staff = get_user_model().objects.create_user(username="staff", password="pass", is_staff=True)
+        for user in (self.store_user, staff):
+            self.client.force_authenticate(user)
+            self.assertEqual(self.client.get(reverse("my-order-list")).status_code, status.HTTP_403_FORBIDDEN)
+            self.assertEqual(self.client.get(reverse("order-detail", args=[order.pk])).status_code, status.HTTP_403_FORBIDDEN)
+            self.assertEqual(self.client.post(reverse("order-cancel", args=[order.pk])).status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_checkout_returns_every_store_specific_summary(self):
+        other_store_user, other_store = self.make_store("second-store")
+        other_variant = DeviceVariant.objects.create(
+            device_model=self.variant.device_model, configuration_key="12-256", ram_gb=12, storage_gb=256
+        )
+        other_offer = Offer.objects.create(store=other_store, device_variant=other_variant, price=1200, quantity=3)
+        basket = Basket.objects.create(user=self.customer)
+        BasketItem.objects.create(basket=basket, offer=self.offer, quantity=1, unit_price=900)
+        BasketItem.objects.create(basket=basket, offer=other_offer, quantity=1, unit_price=1200)
+        self.client.force_authenticate(self.customer)
+        response = self.client.post(reverse("my-order-list"))
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual({entry["store"]["id"] for entry in response.data}, {self.store.pk, other_store.pk})
+        self.assertEqual({entry["total"] for entry in response.data}, {900, 1200})
+
+    def test_anonymous_and_empty_basket_checkout_are_rejected(self):
+        self.assertEqual(self.client.get(reverse("my-order-list")).status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(self.customer)
+        response = self.client.post(reverse("my-order-list"))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["code"], "basket_empty")

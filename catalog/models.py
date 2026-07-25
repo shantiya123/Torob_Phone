@@ -55,6 +55,7 @@ class DeviceModel(models.Model):
     announced_on = models.DateField(null=True, blank=True)
     released_on = models.DateField(null=True, blank=True)
     availability_status = models.CharField(max_length=100, null=True, blank=True)
+    image_url = models.URLField(null=True, blank=True)
     is_catalog_eligible = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -178,6 +178,54 @@ class StoreReviewSerializer(serializers.ModelSerializer):
         return instance
 
 
+class _StaffUserSummarySerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(read_only=True)
+
+
+class _StaffStoreOwnerSerializer(_StaffUserSummarySerializer):
+    email = serializers.EmailField(read_only=True)
+    account_type = serializers.CharField(source="account_profile.account_type", read_only=True)
+    created_at = serializers.DateTimeField(source="account_profile.created_at", read_only=True)
+
+
+class StoreReviewQueueSerializer(serializers.ModelSerializer):
+    """Concise, staff-only review queue representation."""
+
+    owner = _StaffStoreOwnerSerializer(source="account_profile.user", read_only=True)
+    legal_name = serializers.CharField(source="legal_profile.legal_name", read_only=True)
+    business_type = serializers.CharField(source="legal_profile.business_type", read_only=True)
+
+    class Meta:
+        model = Store
+        fields = [
+            "id", "name", "slug", "status", "owner", "legal_name", "business_type",
+            "created_at", "reviewed_at",
+        ]
+        read_only_fields = fields
+
+
+class StoreReviewDetailSerializer(serializers.ModelSerializer):
+    """Full private registration data for staff review only."""
+
+    owner = _StaffStoreOwnerSerializer(source="account_profile.user", read_only=True)
+    legal_profile = StoreLegalProfileSerializer(read_only=True)
+    reviewed_by = _StaffUserSummarySerializer(read_only=True)
+
+    class Meta:
+        model = Store
+        fields = [
+            "id", "name", "slug", "description", "logo", "business_phone", "business_email",
+            "address", "status", "owner", "legal_profile", "reviewed_by", "reviewed_at",
+            "rejection_reason", "created_at", "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class StoreReviewRejectSerializer(serializers.Serializer):
+    rejection_reason = serializers.CharField(trim_whitespace=True, allow_blank=False)
+
+
 # --------------------------------------------------------------------------
 # Offer serializers
 # --------------------------------------------------------------------------
@@ -187,11 +235,12 @@ class OfferListSerializer(serializers.ModelSerializer):
     """Represents an offer in a list of offers for a DeviceVariant. See 7.1."""
 
     store = StorePublicListSerializer(read_only=True)
+    device_variant = DeviceVariantListSerializer(read_only=True)
     available = serializers.BooleanField(source="is_available", read_only=True)
 
     class Meta:
         model = Offer
-        fields = ["id", "store", "price", "quantity", "available", "description"]
+        fields = ["id", "device_variant", "store", "price", "quantity", "available", "description"]
         read_only_fields = fields
 
 

@@ -12,6 +12,8 @@ class QueryProcessingResult:
     query_set: dict
     requirements: object
     candidates: object
+    message: str
+    message_fallback: bool = False
 
 
 class QuerySetModificationService:
@@ -28,9 +30,19 @@ class QuerySetModificationService:
     def process_user_query(self, user_text, current_query_set=None):
         previous = validate_query_set(current_query_set) if current_query_set is not None else self.current_query_set
         # No state changes occur until response validation, normalization, and adaptation all succeed.
-        modified = self.provider.modify(previous, user_text)
+        provider_response = self.provider.modify(previous, user_text)
+        # Keep test/dummy providers using the former direct-QuerySet contract
+        # compatible while production providers use the validated wrapper.
+        if hasattr(provider_response, "query_set"):
+            modified = provider_response.query_set
+            message = provider_response.message
+            message_fallback = provider_response.message_fallback
+        else:
+            modified = provider_response
+            message = "تغییرات موردنظر شما اعمال شد."
+            message_fallback = True
         normalized = normalize_query_set(validate_query_set(modified))
         requirements = query_set_to_filter_requirements(normalized)
         candidates = filter_catalog(requirements)
         self._current_query_set = normalized
-        return QueryProcessingResult(normalized, requirements, candidates)
+        return QueryProcessingResult(normalized, requirements, candidates, message, message_fallback)

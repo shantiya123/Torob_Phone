@@ -9,6 +9,10 @@ from .views import (
     OfferUpdateView,
     StoreDetailView,
     StoreListView,
+    StaffStoreApproveView,
+    StaffStoreRejectView,
+    StaffStoreReviewDetailView,
+    StaffStoreReviewListView,
 )
 
 urlpatterns = [
@@ -18,4 +22,8 @@ urlpatterns = [
     path("stores/<int:pk>/", StoreDetailView.as_view(), name="store-detail"),
     path("offers/", OfferCreateView.as_view(), name="offer-create"),
     path("offers/<int:pk>/", OfferDetailView.as_view(), name="offer-detail"),
+    path("staff/store-reviews/", StaffStoreReviewListView.as_view(), name="staff-store-review-list"),
+    path("staff/store-reviews/<int:pk>/", StaffStoreReviewDetailView.as_view(), name="staff-store-review-detail"),
+    path("staff/store-reviews/<int:pk>/approve/", StaffStoreApproveView.as_view(), name="staff-store-review-approve"),
+    path("staff/store-reviews/<int:pk>/reject/", StaffStoreRejectView.as_view(), name="staff-store-review-reject"),
 ]

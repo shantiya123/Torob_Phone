@@ -18,10 +18,10 @@ or backend-controlled.
 from django.db import transaction
 from django.db.models import F
 from rest_framework import serializers
+from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 
 from marketplace.models import Offer
 from marketplace.serializers import OfferListSerializer
-
 from .models import Basket, BasketItem, Order, OrderItem
 
 
@@ -171,16 +171,58 @@ class OrderItemSerializer(serializers.ModelSerializer):
     recalculated from the offer's current ``price``.
     """
 
-    offer = OfferListSerializer(read_only=True)
-    total = serializers.SerializerMethodField()
+    offer = serializers.PrimaryKeyRelatedField(read_only=True)
+    variant = serializers.SerializerMethodField()
+    line_total = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
-        fields = ["id", "offer", "quantity", "unit_price", "total", "created_at"]
+        fields = ["id", "offer", "variant", "quantity", "unit_price", "line_total", "created_at"]
         read_only_fields = fields
 
-    def get_total(self, instance):
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_line_total(self, instance):
         return instance.unit_price * instance.quantity
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_variant(self, instance):
+        variant = instance.offer.device_variant
+        model = variant.device_model
+        return {
+            "id": variant.pk,
+            "brand": model.brand.name,
+            "model": model.model_name,
+            "image_url": model.image_url,
+            "ram_gb": variant.ram_gb,
+            "storage_gb": variant.storage_gb,
+            "storage_technology": variant.storage_technology,
+        }
+
+
+class OrderStoreSummarySerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+
+
+class OrderSummarySerializer(serializers.ModelSerializer):
+    """Card-sized, historical order summary for lists and checkout output."""
+
+    store = OrderStoreSummarySerializer(read_only=True)
+    item_count = serializers.SerializerMethodField()
+    total = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = ["id", "status", "store", "item_count", "total", "created_at", "updated_at"]
+        read_only_fields = fields
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_item_count(self, instance):
+        return sum(item.quantity for item in instance.items.all())
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_total(self, instance):
+        return sum(item.unit_price * item.quantity for item in instance.items.all())
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -190,16 +232,28 @@ class OrderSerializer(serializers.ModelSerializer):
     changes require a dedicated domain transition, not this serializer.
     """
 
+    store = OrderStoreSummarySerializer(read_only=True)
     items = OrderItemSerializer(many=True, read_only=True)
+    item_count = serializers.SerializerMethodField()
     total = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        fields = ["id", "store", "status", "items", "total", "created_at", "updated_at"]
+        fields = ["id", "store", "status", "items", "item_count", "total", "created_at", "updated_at"]
         read_only_fields = fields
 
+    @extend_schema_field(OpenApiTypes.INT)
     def get_total(self, instance):
         return sum(item.unit_price * item.quantity for item in instance.items.all())
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_item_count(self, instance):
+        return sum(item.quantity for item in instance.items.all())
+
+
+class OrderCancellationResponseSerializer(serializers.Serializer):
+    order = OrderSerializer(read_only=True)
+    stock_restored = serializers.BooleanField(read_only=True)
 
 
 class OrderCreateSerializer(serializers.Serializer):
@@ -215,7 +269,7 @@ class OrderCreateSerializer(serializers.Serializer):
         request = self.context["request"]
         basket = getattr(request.user, "basket", None)
         if basket is None or not basket.items.exists():
-            raise serializers.ValidationError("The basket is empty.")
+            raise serializers.ValidationError({"code": "basket_empty", "detail": "The basket is empty."})
         return attrs
 
     @transaction.atomic
@@ -247,4 +301,5 @@ class OrderCreateSerializer(serializers.Serializer):
         return orders
 
     def to_representation(self, orders):
-        return OrderSerializer(orders, many=True, context=self.context).data
+        # Preserve the existing bare-array checkout response for compatibility.
+        return OrderSummarySerializer(orders, many=True, context=self.context).data

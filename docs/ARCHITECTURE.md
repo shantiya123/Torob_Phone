@@ -1,5 +1,48 @@
 # Architecture Baseline
 
+## TG-013 PostgreSQL readiness and secure JWT cookies (2026-07-25)
+
+Database selection is environment-based: PostgreSQL is the shared/staging/production target, while SQLite remains an explicit development fallback. Existing Django transactions and model features are portable to PostgreSQL. Authentication continues to use SimpleJWT access Bearer tokens, but refresh tokens are now HttpOnly cookies with rotation, blacklisting, controlled refresh errors, and idempotent logout. CORS uses explicit origins and refresh/logout validate browser Origin/Referer values.
+
+## TG-011 minimal phone image support (2026-07-25)
+
+Catalog parent models now have an optional direct `image_url`, inherited by
+variant representations. It is additive and separate from immutable source
+page provenance. The existing GSMArena collector retains listing-card image
+URLs for future imports; a manual missing-only backfill command can extract
+existing source pages without API-time network access.
+
+## TG-010 customer order frontend contract (2026-07-24)
+
+Customer order lists are paginated, newest-first, and optionally filter by
+the existing status values. They return store summaries, sum-of-quantity item
+counts, and totals derived exclusively from `OrderItem.unit_price` snapshots.
+Checkout remains atomic and returns the established bare array of one summary
+per store. Order detail includes concise purchased variant identity and line
+totals without relying on mutable current offer prices.
+
+Only customer profiles may create, list, view, or cancel customer orders.
+Cancellation is idempotent and restores stock at most once; it never recreates
+basket items or creates a wallet refund.
+
+## TG-009 Torobche conversational contract (2026-07-24)
+
+Torobche is an authenticated customer/store conversational interface over the
+existing variant filter engine. GapGPT returns a strict outer object containing
+`message` and `queryset`; the provider boundary extracts only `queryset` and
+passes it unchanged through the existing QuerySet validator and deterministic
+variant filter. GapGPT never queries or selects products.
+
+The backend stores one validated QuerySet per user, while the frontend keeps
+visible transcript messages in browser `sessionStorage`. State is available at
+`GET /api/search/state/` and can be cleared with `POST /api/search/reset/`.
+Staff and unauthenticated users cannot access Torobche. Variant explanations
+use the same saved state and require an active context.
+
+## TG-012 store catalog browsing (2026-07-25)
+
+The catalog app exposes a separate, read-only parent-phone browser for authenticated non-staff Store users. `GET /api/catalog/phones/` paginates catalog-eligible `DeviceModel` rows with ORM brand/model search; `GET /api/catalog/phones/<id>/` exposes that parent and its available `DeviceVariant` records. The latter remains the offerable identity. These endpoints do not use Torobche state, LLMs, offers, or marketplace-specific data.
+
 ## TG-007 backend stabilization (2026-07-24)
 
 Offer writes require an active store. Basket deletion locks the basket item
