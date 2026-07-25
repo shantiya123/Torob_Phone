@@ -474,10 +474,31 @@ Only active Stores are reachable. Response fields:
 business contact/address publicly; frontend should not display private legal or
 review fields, but the backend response is not minimal.
 
-There is no embedded latest-five offer list and no dedicated Store public offer
-list endpoint. The approved Storefront and Store Offers pages cannot obtain
-their Store-scoped offers from the current API without client-side inference or
-an unapproved endpoint. This is a blocking **Missing** capability.
+Offers are loaded separately through the Store-scoped endpoint below; Store
+detail does not embed them.
+
+### Public Store-scoped offers
+
+**Status:** Implemented (TG015)  
+**Method/Path:** `GET /api/stores/{store_id}/offers/`  
+**Authentication:** Public  
+**Used by pages:** `/stores/[storeId]`, `/stores/[storeId]/offers`
+
+`store_id` is the Store primary key. Only Stores with `status=active` are
+visible; missing, pending, rejected, and suspended Stores return `404`.
+Results include only positive-quantity Offers whose DeviceVariant is available
+and whose parent DeviceModel is catalog-eligible. These are the same shared
+eligibility rules used by public variant-offer and public Offer-detail reads.
+The existing `OfferDetailSerializer` public representation contains:
+`id`, compact `device_variant`, public `store`, `price`, `quantity`,
+`available`, `description`, `created_at`, and `updated_at`.
+
+The endpoint uses standard pagination (`page`, `page_size`, default 20,
+maximum 100). Default ordering is newest first (`-created_at`, `-pk`).
+Supported ordering values are `newest`, `price_asc`, and `price_desc`;
+unknown values fall back to `newest`. The Storefront requests
+`?page_size=5` for its latest-five preview, while the full Offers page uses
+normal pagination.
 
 ## 6. Offer contracts
 
@@ -812,6 +833,7 @@ original review metadata.
 | GET | `/api/catalog/phones/{id}/explanation/` | Alternate explanation route |
 | GET | `/api/stores/` | Active public Store list |
 | GET | `/api/stores/{id}/` | Active public Store detail |
+| GET | `/api/stores/{id}/offers/` | Active Store public Offers |
 | GET/PATCH | `/api/stores/me/` | Store owner profile |
 | GET | `/api/stores/me/offers/` | Owner offers |
 | GET | `/api/offers/{id}/` | Public offer detail |
@@ -840,8 +862,8 @@ original review metadata.
 | `/torobche` | Search, state, reset | Implemented |
 | `/phones/[variantId]` | Variant detail, variant offers, explanation | Implemented; explanation context-dependent |
 | `/stores` | Public Store list/search/pagination | Implemented |
-| `/stores/[storeId]` | Store detail, latest five active offers | Partial; Store detail exists, latest-five missing |
-| `/stores/[storeId]/offers` | Store-scoped active offers/pagination | Missing |
+| `/stores/[storeId]` | Store detail, latest five active offers | Implemented with `?page_size=5` |
+| `/stores/[storeId]/offers` | Store-scoped active offers/pagination | Implemented |
 | `/login` | Login, current user, refresh | Partial; body JWT only, no cookie/logout |
 | `/register` | No page-specific endpoint | No page-specific endpoint |
 | `/register/customer` | Register customer | Implemented |
@@ -863,9 +885,9 @@ original review metadata.
 | `/staff/store-reviews` | Review queue | Implemented |
 | `/staff/store-reviews/[reviewId]` | Review detail/approve/reject | Implemented |
 
-**Coverage:** 16 of 26 routes have all required page-specific backend
-capabilities implemented (**61.5%**). A further 8 routes have partial support;
-2 are missing their required backend resource/operation. This percentage
+**Coverage:** 18 of 26 routes have all required page-specific backend
+capabilities implemented (**69.2%**). A further 8 routes have partial support;
+no approved route is missing its required backend resource/operation. This percentage
 counts the approved page responsibilities, not merely whether a URL exists.
 
 ## 13. Backend gap register
@@ -873,7 +895,6 @@ counts the approved page responsibilities, not merely whether a URL exists.
 | Gap ID | Capability | Required by page(s) | Severity | Recommended action |
 |---|---|---|---|---|
 | TG013 | HttpOnly refresh-cookie flow, rotation/invalidation, logout | `/login`, `/account`, all protected pages | blocking | Add cookie-aware login/refresh/logout and document CORS/SameSite |
-| TG015 | Public Store-scoped active offers with latest-five ordering | `/stores/[storeId]`, `/stores/[storeId]/offers` | blocking | Add Store offer list/detail contract with active-only filtering and pagination |
 | TG016 | Wallet charge/top-up and checkout wallet integration | `/wallet`, `/checkout`, confirmation | blocking | Add validated charge endpoint and atomic purchase/refund transaction flow |
 | TG017 | Checkout final revalidation/idempotency | `/checkout`, confirmation | important | Recheck offer/store/stock/price and prevent duplicate submissions |
 | TG018 | Store catalog detail owned-offer lookup and price guidance | `/store/catalog/[phoneId]` | important | Add nested/related offer summary for current Store |

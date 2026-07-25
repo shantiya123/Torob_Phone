@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.db.models import Prefetch, Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import generics, permissions, status
@@ -22,6 +23,19 @@ from .serializers import (
     StoreReviewQueueSerializer,
     StoreReviewRejectSerializer,
 )
+
+
+def public_offer_queryset():
+    """Canonical public Offer eligibility rules shared by public endpoints."""
+
+    return Offer.objects.select_related(
+        "store", "device_variant__device_model__brand"
+    ).filter(
+        store__status=Store.Status.ACTIVE,
+        quantity__gt=0,
+        device_variant__is_available=True,
+        device_variant__device_model__is_catalog_eligible=True,
+    )
 
 
 class _StaffStoreReviewQuerysetMixin:
@@ -154,6 +168,50 @@ class StoreDetailView(generics.RetrieveAPIView):
     queryset = Store.objects.filter(status=Store.Status.ACTIVE)
 
 
+class PublicStoreOfferListView(generics.ListAPIView):
+    """Paginated public offers for one publicly active Store."""
+
+    permission_classes = [permissions.AllowAny]
+    serializer_class = OfferDetailSerializer
+    pagination_class = StandardResultsSetPagination
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "ordering",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                enum=["newest", "price_asc", "price_desc"],
+                description="Defaults to newest. Use page_size=5 for the Storefront preview.",
+            ),
+        ],
+        responses=OfferDetailSerializer,
+        description=(
+            "Public active offers for a Store ID. Hidden or missing Stores return 404; "
+            "only positive-quantity offers are included."
+        ),
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        get_object_or_404(
+            Store.objects.filter(status=Store.Status.ACTIVE),
+            pk=self.kwargs["store_id"],
+        )
+        ordering = self.request.query_params.get("ordering", "newest")
+        ordering_fields = {
+            "newest": ("-created_at", "-pk"),
+            "price_asc": ("price", "pk"),
+            "price_desc": ("-price", "pk"),
+        }
+        return (
+            public_offer_queryset()
+            .filter(store_id=self.kwargs["store_id"])
+            .order_by(*ordering_fields.get(ordering, ordering_fields["newest"]))
+        )
+
+
 class MyStoreView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsStoreOwner]
     serializer_class = StoreOwnerSerializer
@@ -169,10 +227,8 @@ class DeviceVariantOfferListView(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        queryset = Offer.objects.select_related("store").filter(
-            device_variant_id=self.kwargs["device_variant_id"],
-            store__status=Store.Status.ACTIVE,
-            quantity__gt=0,
+        queryset = public_offer_queryset().filter(
+            device_variant_id=self.kwargs["device_variant_id"]
         )
         ordering = self.request.query_params.get("ordering", "price")
         return queryset.order_by("-price" if ordering == "price_desc" else "price", "pk")
@@ -189,10 +245,11 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
         return OfferDetailSerializer if self.request.method == "GET" else OfferUpdateSerializer
 
     def get_queryset(self):
-        queryset = Offer.objects.select_related("store", "device_variant__device_model__brand")
         if self.request.method == "GET":
-            return queryset.filter(store__status=Store.Status.ACTIVE)
-        return queryset.filter(store=user_store(self.request.user))
+            return public_offer_queryset()
+        return Offer.objects.select_related("store", "device_variant__device_model__brand").filter(
+            store=user_store(self.request.user)
+        )
 
 
 class MyOfferListView(generics.ListAPIView):
