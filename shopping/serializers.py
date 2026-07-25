@@ -17,12 +17,19 @@ or backend-controlled.
 
 from django.db import transaction
 from django.db.models import F
+from django.utils import timezone
 from rest_framework import serializers
 from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 
 from marketplace.models import Offer
 from marketplace.serializers import OfferListSerializer
-from .models import Basket, BasketItem, Order, OrderItem
+from .models import (
+    Basket,
+    BasketItem,
+    Order,
+    OrderItem,
+    basket_reservation_deadline,
+)
 
 
 # --------------------------------------------------------------------------
@@ -39,14 +46,26 @@ class BasketItemSerializer(serializers.ModelSerializer):
 
     offer = OfferListSerializer(read_only=True)
     total = serializers.SerializerMethodField()
+    remaining_seconds = serializers.SerializerMethodField()
 
     class Meta:
         model = BasketItem
-        fields = ["id", "offer", "quantity", "unit_price", "total", "created_at", "updated_at"]
-        read_only_fields = ["id", "offer", "unit_price", "total", "created_at", "updated_at"]
+        fields = [
+            "id", "offer", "quantity", "unit_price", "total", "expires_at",
+            "remaining_seconds", "created_at", "updated_at",
+        ]
+        read_only_fields = [
+            "id", "offer", "unit_price", "total", "expires_at",
+            "remaining_seconds", "created_at", "updated_at",
+        ]
 
+    @extend_schema_field(OpenApiTypes.INT)
     def get_total(self, instance):
         return instance.unit_price * instance.quantity
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_remaining_seconds(self, instance):
+        return max(0, int((instance.expires_at - timezone.now()).total_seconds()))
 
 
 class BasketSerializer(serializers.ModelSerializer):
@@ -58,14 +77,23 @@ class BasketSerializer(serializers.ModelSerializer):
 
     items = BasketItemSerializer(many=True, read_only=True)
     total = serializers.SerializerMethodField()
+    next_expiration_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Basket
-        fields = ["id", "items", "total", "created_at", "updated_at"]
+        fields = ["id", "items", "total", "next_expiration_at", "created_at", "updated_at"]
         read_only_fields = fields
 
+    @extend_schema_field(OpenApiTypes.INT)
     def get_total(self, instance):
         return sum(item.unit_price * item.quantity for item in instance.items.all())
+
+    @extend_schema_field(OpenApiTypes.DATETIME)
+    def get_next_expiration_at(self, instance):
+        return min(
+            (item.expires_at for item in instance.items.all()),
+            default=None,
+        )
 
 
 class BasketItemCreateSerializer(serializers.Serializer):
@@ -85,6 +113,12 @@ class BasketItemCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         offer = attrs["offer"]
         quantity = attrs["quantity"]
+        if offer.store.status != offer.store.Status.ACTIVE:
+            raise serializers.ValidationError({"offer": "This Store is not available for purchase."})
+        if not offer.device_variant.is_available:
+            raise serializers.ValidationError({"offer": "This variant is not available."})
+        if not offer.device_variant.device_model.is_catalog_eligible:
+            raise serializers.ValidationError({"offer": "This phone is not available for purchase."})
         if offer.quantity < quantity:
             raise serializers.ValidationError(
                 {"quantity": "The requested quantity exceeds what this store currently has available."}
@@ -98,22 +132,37 @@ class BasketItemCreateSerializer(serializers.Serializer):
         quantity = validated_data["quantity"]
 
         basket, _ = Basket.objects.get_or_create(user=request.user)
+        basket = Basket.objects.select_for_update().get(pk=basket.pk)
 
         # Lock the offer row for the duration of the reservation check.
         offer = Offer.objects.select_for_update().get(pk=offer.pk)
+        item = BasketItem.objects.select_for_update().filter(
+            basket=basket, offer=offer
+        ).first()
+        if item is not None and item.expires_at <= timezone.now():
+            offer.quantity = F("quantity") + item.quantity
+            offer.save(update_fields=["quantity", "updated_at"])
+            item.delete()
+            offer.refresh_from_db()
+            item = None
+
         if offer.quantity < quantity:
             raise serializers.ValidationError(
                 {"quantity": "The requested quantity exceeds what this store currently has available."}
             )
 
-        item, created = BasketItem.objects.select_for_update().get_or_create(
-            basket=basket,
-            offer=offer,
-            defaults={"quantity": quantity, "unit_price": offer.price},
-        )
-        if not created:
+        if item is None:
+            item = BasketItem.objects.create(
+                basket=basket,
+                offer=offer,
+                quantity=quantity,
+                unit_price=offer.price,
+                expires_at=basket_reservation_deadline(),
+            )
+        else:
             item.quantity = F("quantity") + quantity
-            item.save(update_fields=["quantity", "updated_at"])
+            item.expires_at = basket_reservation_deadline()
+            item.save(update_fields=["quantity", "expires_at", "updated_at"])
             item.refresh_from_db()
 
         offer.quantity = F("quantity") - quantity
@@ -133,6 +182,12 @@ class BasketItemUpdateSerializer(serializers.Serializer):
 
     def validate_quantity(self, value):
         instance = self.instance
+        if instance.expires_at <= timezone.now():
+            raise serializers.ValidationError({
+                "code": "basket_reservation_expired",
+                "detail": "This Basket reservation has expired.",
+                "basket_item_id": instance.pk,
+            })
         difference = value - instance.quantity
         if difference > 0 and instance.offer.quantity < difference:
             raise serializers.ValidationError(
@@ -146,6 +201,13 @@ class BasketItemUpdateSerializer(serializers.Serializer):
         difference = new_quantity - instance.quantity
 
         offer = Offer.objects.select_for_update().get(pk=instance.offer_id)
+        instance = BasketItem.objects.select_for_update().get(pk=instance.pk)
+        if instance.expires_at <= timezone.now():
+            raise serializers.ValidationError({
+                "code": "basket_reservation_expired",
+                "detail": "This Basket reservation has expired.",
+                "basket_item_id": instance.pk,
+            })
         if difference > 0 and offer.quantity < difference:
             raise serializers.ValidationError(
                 {"quantity": "The requested quantity exceeds what this store currently has available."}
@@ -155,7 +217,8 @@ class BasketItemUpdateSerializer(serializers.Serializer):
         offer.save(update_fields=["quantity", "updated_at"])
 
         instance.quantity = new_quantity
-        instance.save(update_fields=["quantity", "updated_at"])
+        instance.expires_at = basket_reservation_deadline()
+        instance.save(update_fields=["quantity", "expires_at", "updated_at"])
         return instance
 
 

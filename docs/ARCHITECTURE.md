@@ -128,6 +128,12 @@ The `catalog` app has a Django test suite covering dataset loading, idempotency,
 
 ### Architectural boundaries already present
 
+Basket reservations are represented by `shopping.BasketItem.expires_at`.
+Customer reads and mutations release expired reservations through the
+transactional shopping service; `release_expired_basket_reservations` is the
+bounded cleanup command intended for a scheduler. Checkout treats expiration
+as a conflict and never charges an expired line.
+
 The project package owns configuration and routing only. The `catalog` app owns persisted product facts and their import/provenance boundary. Future business functionality should be added in dedicated Django apps rather than placed in `Torob_Phone/settings.py`, the root URL module, or the catalog importer.
 
 ## PLANNED / FUTURE

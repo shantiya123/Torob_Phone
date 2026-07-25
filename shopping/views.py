@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.db.models import F
+from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -12,6 +13,7 @@ from marketplace.models import Offer
 from .models import Basket, BasketItem, Order
 from .services import OrderCancellationError, cancel_order
 from .services import CheckoutError, checkout_customer
+from .services import release_expired_basket_items
 from .serializers import (
     BasketItemCreateSerializer,
     BasketItemSerializer,
@@ -32,6 +34,7 @@ class MyBasketView(generics.RetrieveAPIView):
 
     def get_object(self):
         basket, _ = Basket.objects.get_or_create(user=self.request.user)
+        release_expired_basket_items(user=self.request.user)
         return Basket.objects.prefetch_related(
             "items__offer__store",
             "items__offer__device_variant__device_model__brand",
@@ -65,6 +68,15 @@ class BasketItemUpdateView(_OwnBasketItemMixin, generics.RetrieveUpdateDestroyAP
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
+        if instance.expires_at <= timezone.now():
+            return Response(
+                {
+                    "code": "basket_reservation_expired",
+                    "detail": "This Basket reservation has expired.",
+                    "basket_item_id": instance.pk,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         item = serializer.save()
@@ -129,7 +141,11 @@ class MyOrderListView(generics.ListCreateAPIView):
             return Response(
                 body,
                 status=status.HTTP_409_CONFLICT
-                if exc.code in {"insufficient_wallet_balance", "checkout_in_progress"}
+                if exc.code in {
+                    "insufficient_wallet_balance",
+                    "checkout_in_progress",
+                    "basket_reservation_expired",
+                }
                 else status.HTTP_400_BAD_REQUEST,
             )
         response = Response(

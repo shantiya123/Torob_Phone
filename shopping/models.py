@@ -1,8 +1,14 @@
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
+from datetime import timedelta
 
 from marketplace.models import Offer, Store
+
+
+def basket_reservation_deadline():
+    return timezone.now() + timedelta(minutes=settings.BASKET_RESERVATION_MINUTES)
 
 
 class Basket(models.Model):
@@ -32,6 +38,7 @@ class BasketItem(models.Model):
     # The initial migration and serializer contract already persist this
     # purchase-time snapshot; keep the model state aligned with both.
     unit_price = models.PositiveIntegerField()
+    expires_at = models.DateTimeField(default=basket_reservation_deadline, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -601,6 +601,7 @@ Missing basket rows are created. Response:
     "updated_at": "..."
   }],
   "total": 35000000,
+  "next_expiration_at": "...",
   "created_at": "...",
   "updated_at": "..."
 }
@@ -609,6 +610,9 @@ Missing basket rows are created. Response:
 `unit_price` is a reservation-time snapshot. Offer `quantity` is the current
 remaining stock, not the basket line's reserved stock. There is no explicit
 invalid-item state, `stock` alias, or basket clear endpoint.
+Each line also includes `expires_at` and integer `remaining_seconds`; expired
+reservations are released before a basket read. `next_expiration_at` is the
+earliest line deadline (or `null`).
 
 ### Add Offer
 
@@ -624,7 +628,8 @@ the basket increases that item's quantity rather than creating a duplicate.
 Success is `201` with a serialized BasketItem. Quantity must be at least 1 and
 available Offer quantity must be sufficient. Guest/Store/Staff are denied;
 missing Offer is 400/404 according to DRF relation validation; stock conflict
-is a field validation error.
+is a field validation error. Re-adding an expired line releases its old
+reservation and creates a fresh reservation at the current Offer price.
 
 ### Change quantity
 
@@ -637,7 +642,9 @@ is a field validation error.
 Request: `{"quantity": 2}`. The difference is reserved/released atomically.
 Success is `200` with the updated BasketItem. Quantity must be at least 1;
 insufficient additional stock is a validation error. Other fields are not
-writable. An item belonging to another customer is not returned (404).
+writable. An expired line returns `409 basket_reservation_expired` and remains
+visible until cleanup/read release; an item belonging to another customer is
+not returned (404). Successful quantity changes refresh the deadline.
 
 ### Remove item
 
@@ -666,6 +673,8 @@ reads the authenticated Customer's basket, revalidates the purchase context,
 honors each BasketItem's reservation-time `unit_price`, creates one paid Order
 per Store, creates one negative `purchase` WalletTransaction per Order, and
 consumes BasketItems without restoring their already-reserved stock.
+If any line is expired, checkout returns `409 basket_reservation_expired`,
+releases expired lines, and creates no Order or wallet charge.
 
 ```json
 {"checkout_id":"12","orders":[{"id":8,"status":"paid","store":{"id":1,"name":"Mobile Center"},"item_count":1,"total":35000000,"created_at":"...","updated_at":"..."}],"order_count":1,"total":35000000,"wallet_balance":15000000}

@@ -13,13 +13,14 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 import os
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 
 def _env_bool(name, default=False):
     return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
-
 
 def _env_list(name):
     return [value.strip() for value in os.getenv(name, "").split(",") if value.strip()]
@@ -36,6 +37,13 @@ DJANGO_ENV = os.getenv("DJANGO_ENV", "development").strip().lower()
 DEBUG = _env_bool('DJANGO_DEBUG', True)
 
 ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS')
+
+try:
+    BASKET_RESERVATION_MINUTES = int(os.getenv("BASKET_RESERVATION_MINUTES", "30"))
+except ValueError as exc:
+    raise RuntimeError("BASKET_RESERVATION_MINUTES must be a positive integer.") from exc
+if BASKET_RESERVATION_MINUTES <= 0:
+    raise RuntimeError("BASKET_RESERVATION_MINUTES must be a positive integer.")
 
 
 # Application definition

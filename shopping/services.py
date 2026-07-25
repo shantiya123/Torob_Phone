@@ -2,12 +2,13 @@
 
 from django.db import transaction
 from django.db.models import F
+from django.utils import timezone
 
 from marketplace.models import Offer
 from wallet.models import WalletTransaction
 from wallet.services import create_transaction, locked_wallet
 
-from .models import Basket, CheckoutAttempt, Order, OrderItem
+from .models import Basket, BasketItem, CheckoutAttempt, Order, OrderItem, basket_reservation_deadline
 
 
 class OrderCancellationError(ValueError):
@@ -20,6 +21,57 @@ class CheckoutError(ValueError):
         self.code = code
         self.detail = detail
         self.extra = extra
+
+
+def release_basket_item_locked(item, offer=None, *, dry_run=False):
+    """Release one locked reservation and delete its BasketItem."""
+
+    offer = offer or Offer.objects.select_for_update().get(pk=item.offer_id)
+    if dry_run:
+        return item.quantity
+    offer.quantity = F("quantity") + item.quantity
+    offer.save(update_fields=["quantity", "updated_at"])
+    quantity = item.quantity
+    item.delete()
+    return quantity
+
+
+def release_expired_basket_items(*, user=None, basket=None, batch_size=200, dry_run=False):
+    """Release expired reservations in bounded, repeatable batches."""
+
+    now = timezone.now()
+    base = BasketItem.objects.filter(expires_at__lte=now)
+    if user is not None:
+        base = base.filter(basket__user=user)
+    if basket is not None:
+        base = base.filter(basket=basket)
+    if dry_run:
+        return {
+            "found": base.count(),
+            "released": 0,
+            "units_restored": sum(base.values_list("quantity", flat=True)),
+        }
+    found = released = units = 0
+    while True:
+        with transaction.atomic():
+            items = list(
+                base.select_for_update()
+                .select_related("basket")
+                .order_by("expires_at", "pk")[:batch_size]
+            )
+            if not items:
+                break
+            found += len(items)
+            for item in items:
+                units += release_basket_item_locked(item)
+                released += 1
+    return {"found": found, "released": released, "units_restored": units}
+
+
+def consume_basket_items(basket):
+    """Consume reservations after successful checkout without restoring stock."""
+
+    BasketItem.objects.filter(basket=basket).delete()
 
 
 def _checkout_payload(attempt, orders, wallet):
@@ -38,7 +90,7 @@ def _checkout_payload(attempt, orders, wallet):
 
 
 @transaction.atomic
-def checkout_customer(user, idempotency_key):
+def _checkout_customer_atomic(user, idempotency_key):
     """Perform one atomic wallet-funded checkout."""
 
     attempt, created = CheckoutAttempt.objects.select_for_update().get_or_create(
@@ -63,6 +115,14 @@ def checkout_customer(user, idempotency_key):
     )
     if not items:
         raise CheckoutError("basket_empty", "The basket is empty.")
+    now = timezone.now()
+    expired_ids = [item.pk for item in items if item.expires_at <= now]
+    if expired_ids:
+        raise CheckoutError(
+            "basket_reservation_expired",
+            "One or more Basket reservations expired before checkout.",
+            expired_item_ids=expired_ids,
+        )
 
     locked_items = []
     offers = {}
@@ -135,7 +195,7 @@ def checkout_customer(user, idempotency_key):
             order=order,
         )
     wallet.save(update_fields=["balance", "updated_at"])
-    basket.items.all().delete()
+    consume_basket_items(basket)
 
     orders = list(
         Order.objects.select_related("store")
@@ -148,6 +208,19 @@ def checkout_customer(user, idempotency_key):
     attempt.response_payload = payload
     attempt.save(update_fields=["status", "response_payload", "updated_at"])
     return payload, False
+
+
+def checkout_customer(user, idempotency_key):
+    """Run checkout, releasing expired lines after an atomic conflict."""
+
+    try:
+        return _checkout_customer_atomic(user, idempotency_key)
+    except CheckoutError as exc:
+        if exc.code == "basket_reservation_expired":
+            # The atomic checkout rolled back; release the expired lines in a
+            # separate committed transaction so valid lines remain reserved.
+            release_expired_basket_items(user=user)
+        raise
 
 
 @transaction.atomic
