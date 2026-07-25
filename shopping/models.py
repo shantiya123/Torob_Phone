@@ -88,3 +88,30 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.offer} x{self.quantity} @ {self.unit_price}"
+
+
+class CheckoutAttempt(models.Model):
+    """Durable idempotency record for customer financial operations."""
+
+    class Status(models.TextChoices):
+        PROCESSING = "processing", "Processing"
+        SUCCEEDED = "succeeded", "Succeeded"
+        FAILED = "failed", "Failed"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="checkout_attempts"
+    )
+    operation = models.CharField(max_length=32)
+    idempotency_key = models.CharField(max_length=128)
+    status = models.CharField(max_length=16, choices=Status, default=Status.PROCESSING)
+    response_payload = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "operation", "idempotency_key"],
+                name="unique_financial_idempotency_key",
+            )
+        ]

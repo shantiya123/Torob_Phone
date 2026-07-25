@@ -11,16 +11,19 @@ from marketplace.models import Offer
 
 from .models import Basket, BasketItem, Order
 from .services import OrderCancellationError, cancel_order
+from .services import CheckoutError, checkout_customer
 from .serializers import (
     BasketItemCreateSerializer,
     BasketItemSerializer,
     BasketItemUpdateSerializer,
     BasketSerializer,
+    CheckoutResponseSerializer,
     OrderCreateSerializer,
     OrderCancellationResponseSerializer,
     OrderSerializer,
     OrderSummarySerializer,
 )
+from wallet.serializers import WalletTransactionSerializer
 
 
 class MyBasketView(generics.RetrieveAPIView):
@@ -92,7 +95,18 @@ class BasketItemDeleteView(BasketItemUpdateView):
             description="Filter by pending, paid, cancelled, or completed.",
         )
     ], responses=OrderSummarySerializer(many=True)),
-    post=extend_schema(request=None, responses=OrderSummarySerializer(many=True)),
+    post=extend_schema(
+        request=None,
+        responses={201: CheckoutResponseSerializer, 200: CheckoutResponseSerializer},
+        parameters=[
+            OpenApiParameter(
+                "Idempotency-Key",
+                OpenApiTypes.STR,
+                OpenApiParameter.HEADER,
+                required=True,
+            )
+        ],
+    ),
 )
 class MyOrderListView(generics.ListCreateAPIView):
     permission_classes = [IsCustomer]
@@ -102,21 +116,28 @@ class MyOrderListView(generics.ListCreateAPIView):
         return OrderCreateSerializer if self.request.method == "POST" else OrderSummarySerializer
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            if "code" in serializer.errors and serializer.errors["code"][0] == "basket_empty":
-                return Response(
-                    {"code": "basket_empty", "detail": "The basket is empty."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            raise ValidationError(serializer.errors)
-        orders = serializer.save()
-        # Checkout is intentionally one-to-many (one Order per store), so the
-        # established response is a bare list rather than a single resource.
-        return Response(
-            OrderSummarySerializer(orders, many=True, context=self.get_serializer_context()).data,
-            status=status.HTTP_201_CREATED,
+        key = request.headers.get("Idempotency-Key", "").strip()
+        if not key or len(key) > 128:
+            return Response(
+                {"code": "idempotency_key_required", "detail": "A valid Idempotency-Key is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            payload, replayed = checkout_customer(request.user, key)
+        except CheckoutError as exc:
+            body = {"code": exc.code, "detail": exc.detail, **exc.extra}
+            return Response(
+                body,
+                status=status.HTTP_409_CONFLICT
+                if exc.code in {"insufficient_wallet_balance", "checkout_in_progress"}
+                else status.HTTP_400_BAD_REQUEST,
+            )
+        response = Response(
+            payload, status=status.HTTP_200_OK if replayed else status.HTTP_201_CREATED
         )
+        if replayed:
+            response["Idempotent-Replay"] = "true"
+        return response
 
     def get_queryset(self):
         queryset = Order.objects.select_related("store").prefetch_related("items").filter(
@@ -160,7 +181,7 @@ class OrderCancelView(generics.GenericAPIView):
         if not request.user.is_staff and order.basket.user_id != request.user.id:
             raise PermissionDenied("You may only cancel your own orders.")
         try:
-            order, restored = cancel_order(order.pk)
+            order, restored, refund, wallet_balance = cancel_order(order.pk)
         except OrderCancellationError as exc:
             raise ValidationError({
                 "code": "order_not_cancellable",
@@ -169,6 +190,9 @@ class OrderCancelView(generics.GenericAPIView):
         return Response({
             "order": OrderSerializer(order, context=self.get_serializer_context()).data,
             "stock_restored": restored,
+            "refund": WalletTransactionSerializer(refund).data if refund else None,
+            "refund_created": refund is not None,
+            "wallet_balance": wallet_balance,
         })
 
 

@@ -44,9 +44,10 @@ Staff is represented by Django `User.is_staff`; there is no `staff` value in
 Store catalog.
 
 Prices, wallet balances, transaction amounts, and historical unit prices are
-positive/negative JSON integers. No currency code or currency unit is stored or
-returned. The unit is **Uncertain** from code and must not be invented by the
-frontend.
+positive/negative JSON integers in one unchanged project monetary unit. The
+repository does not define rial versus toman, so TG016 preserves existing
+integer values without conversion and documents them generically as **project
+monetary units**.
 
 Dates are ISO `YYYY-MM-DD`; datetimes are Django/DRF ISO-8601 datetimes
 serialized with `USE_TZ = True`. `TIME_ZONE = UTC`. Nullable model values are
@@ -653,29 +654,27 @@ There is no clear-all endpoint.
 
 ### Checkout/order creation
 
-**Status:** Partial and unsafe for the approved wallet checkout  
+**Status:** Implemented (TG016)  
 **Method:** `POST`  
 **Path:** `/api/orders/`  
 **Authentication:** Required  
 **Allowed roles:** Customer  
 **Used by pages:** `/checkout`, `/orders/confirmation`
 
-The request accepts no fields; the server reads the authenticated user's
-basket. It creates one `Order` per Store, copies BasketItem quantities and
-historical `unit_price` into OrderItems, deletes all basket items, and returns
-`201` with a bare JSON array of OrderSummary objects:
+The request body is `{}` and requires an `Idempotency-Key` header. The server
+reads the authenticated Customer's basket, revalidates the purchase context,
+honors each BasketItem's reservation-time `unit_price`, creates one paid Order
+per Store, creates one negative `purchase` WalletTransaction per Order, and
+consumes BasketItems without restoring their already-reserved stock.
 
 ```json
-[{"id": 8, "status": "pending", "store": {"id": 1, "name": "Mobile Center"}, "item_count": 1, "total": 35000000, "created_at": "...", "updated_at": "..."}]
+{"checkout_id":"12","orders":[{"id":8,"status":"paid","store":{"id":1,"name":"Mobile Center"},"item_count":1,"total":35000000,"created_at":"...","updated_at":"..."}],"order_count":1,"total":35000000,"wallet_balance":15000000}
 ```
 
-The operation is database-atomic, but it does **not** inspect or deduct a
-Wallet, does not create wallet transactions, does not revalidate current price,
-Store status, variant availability, or stock at checkout, and has no duplicate
-submission idempotency key. Empty basket is `400`:
-`{"code":"basket_empty","detail":"The basket is empty."}`. A failed request
-does not intentionally clear the basket. Checkout does not return one order ID;
-multiple Store orders are possible.
+The response is `201` on first success and `200` for an idempotent replay.
+Empty baskets return `basket_empty`; insufficient funds return `409` with
+`insufficient_wallet_balance`; invalid Store/Variant/Basket contexts return
+controlled checkout errors. All financial and order writes are atomic.
 
 ### Customer order list
 
@@ -706,7 +705,7 @@ with `id`, `brand`, `model`, `image_url`, `ram_gb`, `storage_gb`,
 
 ### Cancel order
 
-**Status:** Implemented, but no wallet refund  
+**Status:** Implemented (TG016)  
 **Method:** `POST`  
 **Path:** `/api/orders/{id}/cancel/`  
 **Authentication:** Required  
@@ -716,12 +715,14 @@ with `id`, `brand`, `model`, `image_url`, `ram_gb`, `storage_gb`,
 Empty request body. Pending and paid orders can transition to `cancelled`;
 completed and other states return `400` with
 `{"code":"order_not_cancellable","detail":"..."}`. A repeated cancellation
-returns success with `stock_restored: false`; the first cancellation restores
-reserved Offer stock atomically. No wallet refund transaction is performed.
+returns success with `stock_restored: false` and `refund_created: false`; the
+first cancellation restores reserved Offer stock atomically and refunds a paid
+wallet Order exactly once. Legacy pending Orders without a purchase
+transaction restore stock but create no money.
 Success is `200`:
 
 ```json
-{"order": {"id": 8, "...": "OrderSerializer fields"}, "stock_restored": true}
+{"order": {"id": 8, "...": "OrderSerializer fields"}, "stock_restored": true, "refund": {"id": 17, "amount": 35000000, "balance_after": 50000000, "transaction_type": "refund", "order": 8, "created_at": "..."}, "refund_created": true, "wallet_balance": 50000000}
 ```
 
 ### Store order endpoints
@@ -736,11 +737,10 @@ routes.
 
 ### Wallet balance
 
-**Status:** Implemented read-only  
+**Status:** Implemented  
 **Method/Path:** `GET /api/wallet/`  
-**Authentication:** Default `IsAuthenticated`  
-**Allowed roles:** Any authenticated user unless a profile/role policy is added
-later  
+**Authentication:** Required  
+**Allowed roles:** Customer only  
 **Used by pages:** `/wallet`, `/basket`, `/checkout`
 
 The view creates a Wallet row if absent. Response is:
@@ -748,22 +748,34 @@ The view creates a Wallet row if absent. Response is:
 
 ### Transactions
 
-**Status:** Implemented read-only  
+**Status:** Implemented  
 **Method/Path:** `GET /api/wallet/transactions/`  
-**Authentication:** Default `IsAuthenticated`  
-**Allowed roles:** Any authenticated user  
+**Authentication:** Required  
+**Allowed roles:** Customer only  
 **Used by pages:** `/wallet`
 
 Paginated, newest first. Each item has `id`, signed integer `amount`,
 `balance_after`, `transaction_type` (`charge`, `purchase`, `refund`), nullable
-`order` ID, and `created_at`.
+`order` ID, and `created_at`. Positive amounts add funds; negative amounts
+deduct funds.
 
 ### Charge/top-up
 
-**Status:** Missing  
-No charge endpoint, demo amount endpoint, custom amount validation, or wallet
-mutation exists. The approved wallet presets cannot be implemented as real
-actions. Checkout also does not deduct balance. This is a blocking backend gap.
+**Status:** Implemented (demo/internal top-up)  
+**Method/Path:** `POST /api/wallet/charge/`  
+**Authentication:** Required  
+**Allowed roles:** Customer only
+
+Request:
+
+```json
+{"amount":5000000}
+```
+
+The amount is an integer project monetary value between `1000000` and
+`100000000`. A required `Idempotency-Key` prevents duplicate credits. The
+atomic response contains the updated Wallet and one positive `charge`
+transaction. This is not a real payment gateway.
 
 ## 10. Staff Store-review contracts
 
@@ -849,6 +861,7 @@ original review metadata.
 | GET | `/api/stores/me/orders/{id}/` | Deferred Store order detail |
 | GET | `/api/wallet/` | Wallet balance |
 | GET | `/api/wallet/transactions/` | Wallet history |
+| POST | `/api/wallet/charge/` | Demo Customer wallet top-up |
 | GET | `/api/staff/store-reviews/` | Staff review queue |
 | GET | `/api/staff/store-reviews/{id}/` | Staff review detail |
 | POST | `/api/staff/store-reviews/{id}/approve/` | Approve pending Store |
@@ -869,11 +882,11 @@ original review metadata.
 | `/register/customer` | Register customer | Implemented |
 | `/register/store` | Register store | Implemented; pending review is not actionable |
 | `/basket` | Basket, add, update, remove | Implemented |
-| `/checkout` | Basket, wallet, order creation | Partial; wallet/final validation missing |
+| `/checkout` | Basket, wallet, order creation | Implemented; atomic wallet checkout |
 | `/orders` | Customer order list | Implemented |
-| `/orders/[orderId]` | Order detail, cancel | Implemented; no wallet refund |
-| `/orders/confirmation` | Order creation response, order detail | Partial; multiple orders/bare array |
-| `/wallet` | Balance, transactions, charge | Partial; read-only, charge missing |
+| `/orders/[orderId]` | Order detail, cancel | Implemented with wallet refund |
+| `/orders/confirmation` | Structured multi-order checkout response, order detail | Implemented |
+| `/wallet` | Balance, transactions, demo charge | Implemented |
 | `/account` | Current user, logout | Partial; current user exists, logout missing |
 | `/store/dashboard` | Current Store, owned offers, optional counts | Partial; no dashboard aggregate |
 | `/store/offers` | Owner offer list, create/delete/update links | Implemented |
@@ -885,8 +898,8 @@ original review metadata.
 | `/staff/store-reviews` | Review queue | Implemented |
 | `/staff/store-reviews/[reviewId]` | Review detail/approve/reject | Implemented |
 
-**Coverage:** 18 of 26 routes have all required page-specific backend
-capabilities implemented (**69.2%**). A further 8 routes have partial support;
+**Coverage:** 21 of 26 routes have all required page-specific backend
+capabilities implemented (**80.8%**). A further 5 routes have partial support;
 no approved route is missing its required backend resource/operation. This percentage
 counts the approved page responsibilities, not merely whether a URL exists.
 
@@ -895,8 +908,6 @@ counts the approved page responsibilities, not merely whether a URL exists.
 | Gap ID | Capability | Required by page(s) | Severity | Recommended action |
 |---|---|---|---|---|
 | TG013 | HttpOnly refresh-cookie flow, rotation/invalidation, logout | `/login`, `/account`, all protected pages | blocking | Add cookie-aware login/refresh/logout and document CORS/SameSite |
-| TG016 | Wallet charge/top-up and checkout wallet integration | `/wallet`, `/checkout`, confirmation | blocking | Add validated charge endpoint and atomic purchase/refund transaction flow |
-| TG017 | Checkout final revalidation/idempotency | `/checkout`, confirmation | important | Recheck offer/store/stock/price and prevent duplicate submissions |
 | TG018 | Store catalog detail owned-offer lookup and price guidance | `/store/catalog/[phoneId]` | important | Add nested/related offer summary for current Store |
 | TG019 | Store dashboard aggregate metrics | `/store/dashboard` | optional | Add narrowly scoped efficient summary endpoint if metrics are approved |
 | TG020 | Public Store response privacy | `/stores`, `/stores/[storeId]` | important | Split public detail to exclude business phone/email/address or explicitly approve exposure |

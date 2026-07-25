@@ -35,11 +35,16 @@ historical `unit_price`, and `line_total`. Offer prices can change later
 without changing historical totals; offers are protected while order items
 reference them.
 
-`POST /api/orders/` accepts no price, stock, store, or status input. It keeps
-the compatible bare array response, with one order summary for each store in
-the basket. The frontend confirmation page should use that returned array.
+`POST /api/orders/` accepts `{}` plus a required `Idempotency-Key` header; no
+price, stock, store, or status input is trusted. It validates the reserved
+BasketItem context, charges the Customer Wallet atomically, creates one paid
+order per Store, and returns a structured response containing `checkout_id`,
+`orders`, `order_count`, `total`, and `wallet_balance`. Replaying the same key
+returns the stored response without a second charge or Order.
 
-`POST /api/orders/<id>/cancel/` returns `{ "order": {...},
-"stock_restored": true }`. Repeating cancellation returns
-`stock_restored: false`; there is no basket recreation or wallet refund. A
-non-cancellable order returns error code `order_not_cancellable`.
+`POST /api/orders/<id>/cancel/` returns the Order, `stock_restored`,
+`refund`, `refund_created`, and `wallet_balance`. Paid wallet Orders receive
+one positive refund transaction and stock restoration; repeated cancellation
+does neither again. Legacy pending Orders without a purchase transaction
+restore stock but do not create money. A non-cancellable order returns
+`order_not_cancellable`.

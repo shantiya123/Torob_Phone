@@ -3,12 +3,16 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from accounts.models import AccountProfile
 from wallet.models import Wallet, WalletTransaction
 
 
 class WalletApiTests(APITestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="wallet-user", password="pass")
+        AccountProfile.objects.create(
+            user=self.user, account_type=AccountProfile.AccountType.CUSTOMER
+        )
         self.other = get_user_model().objects.create_user(username="other-user", password="pass")
 
     def test_wallet_is_lazy_and_transactions_are_scoped(self):

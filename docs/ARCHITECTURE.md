@@ -17,13 +17,14 @@ existing source pages without API-time network access.
 Customer order lists are paginated, newest-first, and optionally filter by
 the existing status values. They return store summaries, sum-of-quantity item
 counts, and totals derived exclusively from `OrderItem.unit_price` snapshots.
-Checkout remains atomic and returns the established bare array of one summary
-per store. Order detail includes concise purchased variant identity and line
-totals without relying on mutable current offer prices.
+Checkout is wallet-funded and atomic, returning a durable structured response
+with one paid order summary per Store, aggregate totals, and an idempotent
+checkout identifier. Order detail includes concise purchased variant identity
+and line totals without relying on mutable current offer prices.
 
 Only customer profiles may create, list, view, or cancel customer orders.
-Cancellation is idempotent and restores stock at most once; it never recreates
-basket items or creates a wallet refund.
+Cancellation is idempotent, restores stock at most once, and refunds paid
+wallet Orders at most once; it never recreates basket items.
 
 ## TG-009 Torobche conversational contract (2026-07-24)
 
@@ -47,10 +48,12 @@ The catalog app exposes a separate, read-only parent-phone browser for authentic
 
 Offer writes require an active store. Basket deletion locks the basket item
 and offer before returning reserved stock. Checkout produces order-item price
-snapshots; cancellation locks the order and referenced offers, restores stock
-once, and never recreates basket items or wallet transactions.
+snapshots, purchase transactions, and durable idempotency records; cancellation
+locks the order and referenced offers, restores stock once, and refunds paid
+wallet Orders once.
 
-Wallet endpoints are read-only and scoped to the authenticated user. The API
+Wallet balance/history and demo charge endpoints are Customer-only and scoped
+to the authenticated user. The API
 also exposes an OpenAPI schema and Swagger UI. Django security settings are
 environment-configured. GapGPT is an optional query-interpretation boundary:
 when unavailable, search filters the supplied validated QuerySet (or an empty

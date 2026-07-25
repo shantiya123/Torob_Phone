@@ -21,14 +21,14 @@ them. `DeviceModel.image_url` is the smallest durable place to retain that
 optional value. Variants expose the parent's URL; no variant image field,
 runtime scrape, media service, or gallery was introduced.
 
-## Decision: Keep checkout's multi-order response as a bare array
+## Decision: Return a durable structured multi-order checkout response
 
 **Date:** 2026-07-24
 
-Checkout can create one order per store. The endpoint retains its existing
-bare-array response for compatibility, but each entry is now a documented
-order summary containing public store identity, historical total, and item
-count. The frontend confirmation page should use this response directly.
+Checkout can create one paid order per store. The endpoint returns a durable
+structured response containing a checkout identifier, order summaries,
+aggregate count/total, and remaining wallet balance. The frontend confirmation
+page can render all Store-specific orders without guessing response shape.
 
 Order items reference protected offers and retain their own unit-price
 snapshot. Presentation must use that snapshot, never a mutable offer price.
@@ -57,14 +57,14 @@ the source of truth. The reset endpoint stores the all-null QuerySet.
 AI explanations remain generated on demand, are not persisted, and receive a
 reduced product payload plus the saved filter only.
 
-## Decision: Cancellation returns inventory, not funds
+## Decision: Cancellation restores inventory and refunds paid wallet orders
 
 **Date:** 2026-07-24
 
 Cancellation atomically restores `OrderItem` quantities to their offers only
-when a pending or paid order first becomes cancelled. It does not recreate
-basket items or create wallet refund transactions because checkout currently
-does not debit a wallet or process payment.
+when a pending or paid order first becomes cancelled. Paid Orders created by
+wallet checkout receive one linked refund transaction; legacy pending Orders
+without a purchase transaction restore stock but do not create money.
 
 ## Decision: Preserve the generated Django baseline
 

@@ -37,3 +37,17 @@ class WalletTransactionSerializer(serializers.ModelSerializer):
         model = WalletTransaction
         fields = ["id", "amount", "balance_after", "transaction_type", "order", "created_at"]
         read_only_fields = fields
+
+
+class WalletChargeSerializer(serializers.Serializer):
+    amount = serializers.IntegerField(min_value=1_000_000, max_value=100_000_000)
+
+    def validate_amount(self, value):
+        if isinstance(value, bool):
+            raise serializers.ValidationError("Amount must be an integer.")
+        return value
+
+
+class WalletChargeResponseSerializer(serializers.Serializer):
+    wallet = WalletSerializer(read_only=True)
+    transaction = WalletTransactionSerializer(read_only=True)

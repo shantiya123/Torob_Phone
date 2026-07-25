@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 from shopping.models import Order
 
@@ -40,6 +41,18 @@ class WalletTransaction(models.Model):
     balance_after = models.IntegerField()
     transaction_type = models.CharField(max_length=20, choices=TransactionType)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "transaction_type"],
+                condition=Q(
+                    order__isnull=False,
+                    transaction_type="refund",
+                ),
+                name="unique_order_refund_transaction",
+            )
+        ]
 
     def __str__(self):
         return f"{self.transaction_type} {self.amount} -> {self.balance_after}"

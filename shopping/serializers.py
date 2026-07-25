@@ -254,6 +254,17 @@ class OrderSerializer(serializers.ModelSerializer):
 class OrderCancellationResponseSerializer(serializers.Serializer):
     order = OrderSerializer(read_only=True)
     stock_restored = serializers.BooleanField(read_only=True)
+    refund = serializers.DictField(read_only=True, allow_null=True)
+    refund_created = serializers.BooleanField(read_only=True)
+    wallet_balance = serializers.IntegerField(read_only=True, allow_null=True)
+
+
+class CheckoutResponseSerializer(serializers.Serializer):
+    checkout_id = serializers.CharField(read_only=True)
+    orders = OrderSummarySerializer(many=True, read_only=True)
+    order_count = serializers.IntegerField(read_only=True)
+    total = serializers.IntegerField(read_only=True)
+    wallet_balance = serializers.IntegerField(read_only=True)
 
 
 class OrderCreateSerializer(serializers.Serializer):

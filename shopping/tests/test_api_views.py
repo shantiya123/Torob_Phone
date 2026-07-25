@@ -8,6 +8,7 @@ from catalog.models import Brand, DeviceModel, DeviceVariant
 from catalog.query_set import empty_query_set
 from marketplace.models import Offer, Store
 from shopping.models import Basket, BasketItem, Order, OrderItem
+from wallet.models import Wallet
 
 
 class ApiViewTestCase(APITestCase):
@@ -207,16 +208,24 @@ class ApiViewTestCase(APITestCase):
         basket = Basket.objects.create(user=self.customer)
         BasketItem.objects.create(basket=basket, offer=self.offer, quantity=1, unit_price=900)
         BasketItem.objects.create(basket=basket, offer=other_offer, quantity=1, unit_price=1200)
+        Wallet.objects.create(user=self.customer, balance=5000)
         self.client.force_authenticate(self.customer)
-        response = self.client.post(reverse("my-order-list"))
+        response = self.client.post(
+            reverse("my-order-list"), {}, HTTP_IDEMPOTENCY_KEY="checkout-old-test"
+        )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(len(response.data), 2)
-        self.assertEqual({entry["store"]["id"] for entry in response.data}, {self.store.pk, other_store.pk})
-        self.assertEqual({entry["total"] for entry in response.data}, {900, 1200})
+        self.assertEqual(response.data["order_count"], 2)
+        self.assertEqual(
+            {entry["store"]["id"] for entry in response.data["orders"]},
+            {self.store.pk, other_store.pk},
+        )
+        self.assertEqual({entry["total"] for entry in response.data["orders"]}, {900, 1200})
 
     def test_anonymous_and_empty_basket_checkout_are_rejected(self):
         self.assertEqual(self.client.get(reverse("my-order-list")).status_code, status.HTTP_401_UNAUTHORIZED)
         self.client.force_authenticate(self.customer)
-        response = self.client.post(reverse("my-order-list"))
+        response = self.client.post(
+            reverse("my-order-list"), {}, HTTP_IDEMPOTENCY_KEY="empty-basket-test"
+        )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["code"], "basket_empty")
