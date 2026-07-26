@@ -1,6 +1,17 @@
 import { z } from "zod";
 
 export const accessTokenSchema = z.object({ access: z.string().min(1) }).strict();
+export const currentUserSchema = z
+  .object({
+    id: z.number().int().positive(),
+    username: z.string(),
+    email: z.string(),
+    is_staff: z.boolean(),
+    is_superuser: z.boolean(),
+    account_type: z.enum(["customer", "store"]).nullable(),
+    created_at: z.string().nullable(),
+  })
+  .strict();
 export const moneySchema = z.number().int().safe();
 export const nonNegativeMoneySchema = moneySchema.nonnegative();
 

@@ -29,7 +29,9 @@ types under `src/types/api`, Zod validation for critical contracts, and MSW
 transport tests. See [`docs/API_CLIENT.md`](docs/API_CLIENT.md) for public versus
 authenticated execution, in-memory access tokens, refresh coordination, errors,
 pagination, cancellation, idempotency, and security boundaries. FE004 will own
-session state and authentication UI.
+session state and authentication UI. FE004 adds the client auth provider,
+refresh-cookie restoration, customer forms, role resolution, safe redirects,
+and route guards; see [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md).
 
 No font asset is redistributed in this repository. The approved Persian stack is
 `Vazirmatn`, `IRANSansX`, Tahoma, sans-serif; licensed WOFF2 files can be added
@@ -52,4 +54,9 @@ configure an installed `chrome` or `msedge` channel locally without committing a
 machine-specific executable path.
 
 No feature pages, authentication UI, persistent session state, or backend
-changes are implemented in FE003.
+changes are implemented in FE003. FE004 includes only authentication flows and
+protected route placeholders; final commerce, account, storefront, and
+workspace UI arrives in later task groups.
+FE005 adds the reusable public shell, role-aware desktop navigation, mobile
+drawer, footer, route-aware state, accessibility announcer, and subtle route
+transitions. Feature content remains placeholder-only until its task group.

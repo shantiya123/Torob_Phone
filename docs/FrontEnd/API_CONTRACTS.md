@@ -239,13 +239,16 @@ is missing or invalid. The endpoint is idempotent and returns
   "id": 1,
   "username": "soroush",
   "email": "user@example.com",
+  "is_staff": false,
+  "is_superuser": false,
   "account_type": "customer",
   "created_at": "2026-07-25T12:00:00Z"
 }
 ```
 
-`PATCH` accepts only `email`; `id`, `username`, `account_type`, and
-`created_at` are read-only. No Store object is nested in this response.
+`PATCH` accepts only `email`; `id`, `username`, `is_staff`, `is_superuser`,
+`account_type`, and `created_at` are read-only. No Store object is nested in
+this response.
 
 ### Customer and Store profiles
 

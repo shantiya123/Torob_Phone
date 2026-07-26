@@ -102,11 +102,15 @@ class CookieAuthenticationTests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
         response = self.client.get(self.me_url)
         self.assertEqual(response.data["account_type"], AccountProfile.AccountType.CUSTOMER)
+        self.assertFalse(response.data["is_staff"])
+        self.assertFalse(response.data["is_superuser"])
 
         response = self.login("store")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
         response = self.client.get(self.me_url)
         self.assertEqual(response.data["account_type"], AccountProfile.AccountType.STORE)
+        self.assertFalse(response.data["is_staff"])
+        self.assertFalse(response.data["is_superuser"])
 
         response = self.login("staff")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
@@ -114,6 +118,8 @@ class CookieAuthenticationTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNone(response.data["account_type"])
         self.assertIsNone(response.data["created_at"])
+        self.assertTrue(response.data["is_staff"])
+        self.assertFalse(response.data["is_superuser"])
 
     @override_settings(CORS_ALLOWED_ORIGINS=["http://localhost:3000"], JWT_AUTH_TRUSTED_ORIGINS={"http://localhost:3000"})
     def test_configured_origin_allows_credentials_without_wildcard_cors(self):

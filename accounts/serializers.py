@@ -185,17 +185,25 @@ class CurrentUserSerializer(serializers.ModelSerializer):
     """Represents the authenticated user's own account. See 3.3.
 
     Only ``email`` is writable. ``account_type``, ``is_staff``,
-    ``is_superuser``, ``groups``, and ``user_permissions`` are not exposed by
-    this serializer at all, so they cannot be modified through it.
+    ``is_superuser``, ``groups``, and ``user_permissions`` are read-only
+    identity/authorization signals and cannot be modified through it.
     """
 
     account_type = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
+    is_staff = serializers.BooleanField(read_only=True)
+    is_superuser = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "account_type", "created_at"]
-        read_only_fields = ["id", "username", "account_type", "created_at"]
+        fields = [
+            "id", "username", "email", "is_staff", "is_superuser",
+            "account_type", "created_at",
+        ]
+        read_only_fields = [
+            "id", "username", "is_staff", "is_superuser",
+            "account_type", "created_at",
+        ]
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_account_type(self, instance):

@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import { siteConfig } from "@/config/site";
+import { AuthProvider } from "@/features/auth/context/auth-provider";
+import { PublicShell } from "@/components/shell/public-shell";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -29,7 +31,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <a className="skip-link" href="#main-content">
           پرش به محتوای اصلی
         </a>
-        {children}
+        <AuthProvider>
+          <PublicShell>{children}</PublicShell>
+        </AuthProvider>
       </body>
     </html>
   );

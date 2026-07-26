@@ -1,7 +1,14 @@
 import { z } from "zod";
-import type { AccessTokenResponse, CurrentUser, LoginRequest, LogoutResponse } from "@/types/api";
+import type {
+  AccessTokenResponse,
+  CurrentUser,
+  CustomerRegistrationInput,
+  CustomerRegistrationResponse,
+  LoginRequest,
+  LogoutResponse,
+} from "@/types/api";
 import { apiClient, type ApiClient } from "./client";
-import { accessTokenSchema } from "./schemas";
+import { accessTokenSchema, currentUserSchema } from "./schemas";
 
 export const authApi = {
   async login(credentials: LoginRequest, client: ApiClient = apiClient) {
@@ -23,6 +30,16 @@ export const authApi = {
     client.tokenProvider.setAccessToken(response.access);
     return response;
   },
+  registerCustomer(input: CustomerRegistrationInput, client: ApiClient = apiClient) {
+    return client.request<CustomerRegistrationResponse, CustomerRegistrationInput>(
+      "auth/register/",
+      {
+        method: "POST",
+        json: input,
+        expectedStatuses: [201],
+      },
+    );
+  },
   async logout(client: ApiClient = apiClient) {
     try {
       return await client.request<LogoutResponse>("auth/logout/", {
@@ -35,7 +52,7 @@ export const authApi = {
     }
   },
   getCurrentUser(client: ApiClient = apiClient) {
-    return client.request<CurrentUser>("auth/me/", { auth: true });
+    return client.request<CurrentUser>("auth/me/", { auth: true, schema: currentUserSchema });
   },
   updateCurrentUser(email: string, client: ApiClient = apiClient) {
     return client.request<CurrentUser, { email: string }>("auth/me/", {

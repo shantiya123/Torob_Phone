@@ -115,6 +115,10 @@ Vitest and MSW cover protocol behavior without a live Django server:
 pnpm test:run
 ```
 
+The authenticated `/api/auth/me/` response is runtime-validated and includes
+the read-only `is_staff` and `is_superuser` identity signals used by FE004 role
+resolution. These values are never accepted from frontend input.
+
 Playwright may use its managed Chromium in CI. Where the Playwright CDN is
 blocked, local configuration can use installed Chrome or Edge without
 hardcoding a Windows executable path.

@@ -22,10 +22,12 @@
     "check:all": "pnpm check && pnpm test:e2e"
   },
   "dependencies": {
+    "@hookform/resolvers": "5.2.2",
     "motion": "12.42.2",
     "next": "16.2.12",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-hook-form": "7.62.0",
     "zod": "4.3.6"
   },
   "devDependencies": {
