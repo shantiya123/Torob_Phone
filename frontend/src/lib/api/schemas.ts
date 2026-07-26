@@ -56,6 +56,24 @@ export const compactVariantSchema = z
   })
   .strict();
 
+const optionalSpecificationSchema = z.record(z.string(), z.unknown()).nullable();
+
+export const deviceVariantDetailSchema = compactVariantSchema
+  .extend({
+    announced_on: z.string().nullable(),
+    released_on: z.string().nullable(),
+    sku_or_region: z.string().nullable(),
+    performance: optionalSpecificationSchema,
+    displays: z.array(z.record(z.string(), z.unknown())).default([]),
+    battery: optionalSpecificationSchema,
+    cameras: z.array(z.record(z.string(), z.unknown())).default([]),
+    connectivity: optionalSpecificationSchema,
+    physical: optionalSpecificationSchema,
+    software: optionalSpecificationSchema,
+    benchmarks: z.array(z.record(z.string(), z.unknown())).default([]),
+  })
+  .strict();
+
 export const publicOfferSchema = z
   .object({
     id: z.number().int().positive(),

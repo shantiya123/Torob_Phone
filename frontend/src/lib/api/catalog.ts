@@ -8,10 +8,14 @@ import type {
 } from "@/types/api";
 import { apiClient, type ApiClient } from "./client";
 import { buildQuery, paginationQuery } from "./query";
+import { deviceVariantDetailSchema, paginatedSchema, publicOfferSchema } from "./schemas";
 
 export const catalogApi = {
   variant(variantId: number, client: ApiClient = apiClient) {
-    return client.request<DeviceVariantDetail>(`catalog/device-variants/${variantId}/`);
+    return client.request<DeviceVariantDetail>(`catalog/device-variants/${variantId}/`, {
+      next: { revalidate: 60 },
+      schema: deviceVariantDetailSchema,
+    });
   },
   variantOffers(
     variantId: number,
@@ -20,6 +24,10 @@ export const catalogApi = {
   ) {
     return client.request<PaginatedResponse<PublicOffer>>(
       `catalog/device-variants/${variantId}/offers/${buildQuery({ ...paginationQuery(params), ordering: params.ordering })}`,
+      {
+        next: { revalidate: 20 },
+        schema: paginatedSchema(publicOfferSchema),
+      },
     );
   },
   phones(params: PaginationParams & { search?: string } = {}, client: ApiClient = apiClient) {

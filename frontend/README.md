@@ -69,3 +69,6 @@ partial failure handling, and responsive motion. See
 FE007 implements public Store listing, URL-backed search and pagination,
 Storefront detail, Store Offers ordering, privacy-safe media rendering, and
 the IranSans integration point.
+FE008 implements exact Phone Variant detail, public cross-Store Offer
+comparison, supported price ordering, bounded pagination, and Customer-only
+Basket entry. See [`docs/PHONE_VARIANT_DETAIL.md`](docs/PHONE_VARIANT_DETAIL.md).
