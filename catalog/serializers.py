@@ -18,6 +18,7 @@ never through a client-facing write API.
 
 from rest_framework import serializers
 from drf_spectacular.utils import OpenApiTypes, extend_schema_field
+from django.db.models import Count, Max, Min
 
 from .models import (
     BatterySpec,
@@ -32,6 +33,7 @@ from .models import (
     SoftwareSpec,
 )
 from .query_set import QuerySetValidationError, validate_query_set
+from marketplace.models import Offer, Store
 
 # Phase 6 (Search) has not defined its ordering contract yet. These are the
 # two values illustrated in docs/Serializers.md 9.1; extend deliberately, not
@@ -86,7 +88,77 @@ class StoreCatalogPhoneSerializer(serializers.ModelSerializer):
 class StoreCatalogPhoneDetailSerializer(StoreCatalogPhoneSerializer):
     """Store catalog phone with the offerable, available configurations."""
 
-    variants = DeviceVariantListSerializer(many=True, read_only=True)
+    class CatalogOfferSerializer(serializers.ModelSerializer):
+        publicly_available = serializers.SerializerMethodField()
+
+        class Meta:
+            model = Offer
+            fields = ["id", "price", "quantity", "publicly_available", "updated_at"]
+            read_only_fields = fields
+
+        def get_publicly_available(self, obj):
+            return (
+                obj.store.status == Store.Status.ACTIVE
+                and obj.quantity > 0
+                and obj.device_variant.is_available
+                and obj.device_variant.device_model.is_catalog_eligible
+            )
+
+    class CatalogVariantSerializer(DeviceVariantListSerializer):
+        owned_offer = serializers.SerializerMethodField()
+        market = serializers.SerializerMethodField()
+
+        @extend_schema_field(OpenApiTypes.OBJECT)
+        def get_owned_offer(self, instance):
+            offer = self.context.get("owned_offer_map", {}).get(instance.pk)
+            return StoreCatalogPhoneDetailSerializer.CatalogOfferSerializer(offer).data if offer else None
+
+        @extend_schema_field(OpenApiTypes.OBJECT)
+        def get_market(self, instance):
+            return self.context.get("market_map", {}).get(
+                instance.pk,
+                {"offer_count": 0, "lowest_price": None, "highest_price": None},
+            )
+
+        class Meta(DeviceVariantListSerializer.Meta):
+            fields = DeviceVariantListSerializer.Meta.fields + ["owned_offer", "market"]
+            read_only_fields = fields
+
+    variants = CatalogVariantSerializer(many=True, read_only=True)
+
+    def to_representation(self, instance):
+        request = self.context.get("request")
+        store_id = getattr(getattr(request, "user", None), "account_profile", None)
+        store_id = getattr(getattr(store_id, "store", None), "pk", None)
+        variants = list(instance.variants.all())
+        variant_ids = [variant.pk for variant in variants]
+        owned = {}
+        if store_id and variant_ids:
+            owned = {
+                offer.device_variant_id: offer
+                for offer in Offer.objects.filter(
+                    store_id=store_id, device_variant_id__in=variant_ids
+                )
+            }
+        public = Offer.objects.filter(
+            device_variant_id__in=variant_ids,
+            store__status=Store.Status.ACTIVE,
+            quantity__gt=0,
+            device_variant__is_available=True,
+            device_variant__device_model__is_catalog_eligible=True,
+        ).values("device_variant_id").annotate(
+            offer_count=Count("pk"), lowest_price=Min("price"), highest_price=Max("price")
+        )
+        self.context["owned_offer_map"] = owned
+        self.context["market_map"] = {
+            row["device_variant_id"]: {
+                "offer_count": row["offer_count"],
+                "lowest_price": row["lowest_price"],
+                "highest_price": row["highest_price"],
+            }
+            for row in public
+        }
+        return super().to_representation(instance)
 
     class Meta(StoreCatalogPhoneSerializer.Meta):
         fields = StoreCatalogPhoneSerializer.Meta.fields + ["variants"]

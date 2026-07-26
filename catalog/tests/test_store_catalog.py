@@ -111,6 +111,12 @@ class StoreCatalogApiTests(APITestCase):
                 "ram_gb": 8,
                 "storage_technology": None,
                 "is_available": True,
+                "owned_offer": None,
+                "market": {
+                    "offer_count": 0,
+                    "lowest_price": None,
+                    "highest_price": None,
+                },
             }
         ])
 

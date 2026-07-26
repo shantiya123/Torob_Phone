@@ -18,6 +18,7 @@ marketplace model.
 
 from django.db import transaction
 from rest_framework import serializers
+from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 
 from catalog.models import DeviceVariant
 from catalog.serializers import DeviceVariantListSerializer
@@ -30,13 +31,17 @@ from .models import Offer, Store, StoreLegalProfile
 # --------------------------------------------------------------------------
 
 
-class StorePublicListSerializer(serializers.ModelSerializer):
-    """Minimal public information for the store list. See 5.1."""
+class PublicStoreSummarySerializer(serializers.ModelSerializer):
+    """Compact identity safe for public Offers, baskets, and orders."""
 
     class Meta:
         model = Store
         fields = ["id", "name", "slug", "logo"]
         read_only_fields = fields
+
+
+class StorePublicListSerializer(PublicStoreSummarySerializer):
+    """Minimal public information for the store list. See 5.1."""
 
 
 class StorePublicDetailSerializer(serializers.ModelSerializer):
@@ -54,9 +59,6 @@ class StorePublicDetailSerializer(serializers.ModelSerializer):
             "slug",
             "description",
             "logo",
-            "business_phone",
-            "business_email",
-            "address",
             "created_at",
         ]
         read_only_fields = fields
@@ -234,7 +236,7 @@ class StoreReviewRejectSerializer(serializers.Serializer):
 class OfferListSerializer(serializers.ModelSerializer):
     """Represents an offer in a list of offers for a DeviceVariant. See 7.1."""
 
-    store = StorePublicListSerializer(read_only=True)
+    store = PublicStoreSummarySerializer(read_only=True)
     device_variant = DeviceVariantListSerializer(read_only=True)
     available = serializers.BooleanField(source="is_available", read_only=True)
 
@@ -251,7 +253,7 @@ class OfferDetailSerializer(serializers.ModelSerializer):
     exposed here; ``store`` uses the public store serializer.
     """
 
-    store = StorePublicListSerializer(read_only=True)
+    store = PublicStoreSummarySerializer(read_only=True)
     device_variant = DeviceVariantListSerializer(read_only=True)
     available = serializers.BooleanField(source="is_available", read_only=True)
 
@@ -269,6 +271,44 @@ class OfferDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+
+class StoreOperationalOfferSerializer(serializers.ModelSerializer):
+    """Store-owner offer representation with derived visibility state."""
+
+    store = PublicStoreSummarySerializer(read_only=True)
+    device_variant = DeviceVariantListSerializer(read_only=True)
+    publicly_available = serializers.SerializerMethodField()
+    availability_reason = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Offer
+        fields = [
+            "id", "device_variant", "store", "price", "quantity",
+            "publicly_available", "availability_reason", "updated_at",
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_publicly_available(self, obj):
+        return (
+            obj.store.status == Store.Status.ACTIVE
+            and obj.quantity > 0
+            and obj.device_variant.is_available
+            and obj.device_variant.device_model.is_catalog_eligible
+        )
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_availability_reason(self, obj):
+        if obj.store.status != Store.Status.ACTIVE:
+            return "store_not_active"
+        if obj.quantity <= 0:
+            return "out_of_stock"
+        if not obj.device_variant.is_available:
+            return "variant_unavailable"
+        if not obj.device_variant.device_model.is_catalog_eligible:
+            return "device_not_catalog_eligible"
+        return None
 
 
 class OfferCreateSerializer(serializers.ModelSerializer):

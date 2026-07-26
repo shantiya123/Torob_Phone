@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+:root {
+  --color-obsidian: #0b0b0d;
+  --color-graphite: #151519;
+  --color-charcoal: #202026;
+  --color-slate: #3a3a44;
+  --color-elevated: #292932;
+  --color-radish: #e5394f;
+  --color-radish-deep: #b9233a;
+  --color-text-primary: #fff8f5;
+  --color-text-secondary: #b9b3b5;
+  --color-danger: #ff6b6b;
+  --font-body: "Vazirmatn", "IRANSansX", Tahoma, sans-serif;
+  --font-display: "Vazirmatn", "IRANSansX", Tahoma, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--color-obsidian);
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--color-obsidian);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-radish);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--color-radish);
+  color: white;
+}
+
+.skip-link {
+  position: fixed;
+  inset-block-start: 1rem;
+  inset-inline-start: 1rem;
+  z-index: 50;
+  transform: translateY(-200%);
+  border-radius: 0.375rem;
+  background: var(--color-radish);
+  padding: 0.75rem 1rem;
+  color: white;
+  transition: transform 140ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -218,9 +218,16 @@ class MyStoreOrderListView(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        return Order.objects.prefetch_related("items__offer__store").filter(
+        queryset = Order.objects.prefetch_related("items__offer__store").filter(
             store=user_store(self.request.user)
-        ).order_by("-created_at", "-pk")
+        )
+        requested_status = self.request.query_params.get("status")
+        if requested_status is not None:
+            valid_statuses = {value for value, _label in Order.Status.choices}
+            if requested_status not in valid_statuses:
+                raise ValidationError({"status": "Invalid order status."})
+            queryset = queryset.filter(status=requested_status)
+        return queryset.order_by("-created_at", "-pk")
 
 
 class StoreOrderDetailView(generics.RetrieveAPIView):

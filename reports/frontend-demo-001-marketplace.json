@@ -1,0 +1,339 @@
+{
+  "run_id": "frontend-demo-001",
+  "scenario": "frontend-ready-marketplace",
+  "database_engine": "postgresql",
+  "database_name": "torob_phone_simulation",
+  "base_url": "http://127.0.0.1:8000",
+  "mode": "hybrid",
+  "keep_data": true,
+  "generated_at": "2026-07-26T06:46:50.209508+00:00",
+  "validation": {
+    "passed": true,
+    "findings": [],
+    "approved_stores": 5,
+    "rejected_stores": 1,
+    "customers": 10,
+    "offers": 1320,
+    "orders": 11,
+    "dashboard_audit": [
+      {
+        "store_id": 5,
+        "offer_total": 262
+      },
+      {
+        "store_id": 6,
+        "offer_total": 263
+      },
+      {
+        "store_id": 7,
+        "offer_total": 264
+      },
+      {
+        "store_id": 8,
+        "offer_total": 265
+      },
+      {
+        "store_id": 9,
+        "offer_total": 266
+      }
+    ]
+  },
+  "stages": {
+    "catalog_ready": true,
+    "offers_created": true,
+    "reviewed_stores": true,
+    "customers_created": true,
+    "registered_stores": true,
+    "wallets_charged": true,
+    "basket_scenarios_complete": true,
+    "checkout_scenarios_complete": true,
+    "cancellation_scenarios_complete": true,
+    "validated": true
+  },
+  "stores": [
+    {
+      "index": 1,
+      "status": "active",
+      "store_id": 5,
+      "rejection_reason": ""
+    },
+    {
+      "index": 2,
+      "status": "active",
+      "store_id": 6,
+      "rejection_reason": ""
+    },
+    {
+      "index": 3,
+      "status": "active",
+      "store_id": 7,
+      "rejection_reason": ""
+    },
+    {
+      "index": 4,
+      "status": "active",
+      "store_id": 8,
+      "rejection_reason": ""
+    },
+    {
+      "index": 5,
+      "status": "active",
+      "store_id": 9,
+      "rejection_reason": ""
+    },
+    {
+      "index": 6,
+      "status": "rejected",
+      "store_id": 10,
+      "rejection_reason": "Synthetic compliance evidence incomplete."
+    }
+  ],
+  "customers": [
+    {
+      "index": 1,
+      "user_id": 24,
+      "username": "sim-frontend-demo-001-market-customer-01"
+    },
+    {
+      "index": 2,
+      "user_id": 25,
+      "username": "sim-frontend-demo-001-market-customer-02"
+    },
+    {
+      "index": 3,
+      "user_id": 26,
+      "username": "sim-frontend-demo-001-market-customer-03"
+    },
+    {
+      "index": 4,
+      "user_id": 27,
+      "username": "sim-frontend-demo-001-market-customer-04"
+    },
+    {
+      "index": 5,
+      "user_id": 28,
+      "username": "sim-frontend-demo-001-market-customer-05"
+    },
+    {
+      "index": 6,
+      "user_id": 29,
+      "username": "sim-frontend-demo-001-market-customer-06"
+    },
+    {
+      "index": 7,
+      "user_id": 30,
+      "username": "sim-frontend-demo-001-market-customer-07"
+    },
+    {
+      "index": 8,
+      "user_id": 31,
+      "username": "sim-frontend-demo-001-market-customer-08"
+    },
+    {
+      "index": 9,
+      "user_id": 32,
+      "username": "sim-frontend-demo-001-market-customer-09"
+    },
+    {
+      "index": 10,
+      "user_id": 33,
+      "username": "sim-frontend-demo-001-market-customer-10"
+    }
+  ],
+  "offers": {
+    "approved_store_offer_counts": {
+      "5": 262,
+      "6": 263,
+      "7": 264,
+      "8": 265,
+      "9": 266
+    }
+  },
+  "wallets": [
+    {
+      "user_id": 24,
+      "balance": 63000000,
+      "idempotency_replayed": true
+    },
+    {
+      "user_id": 25,
+      "balance": 66000000,
+      "idempotency_replayed": true
+    },
+    {
+      "user_id": 26,
+      "balance": 69000000,
+      "idempotency_replayed": true
+    },
+    {
+      "user_id": 27,
+      "balance": 72000000,
+      "idempotency_replayed": true
+    },
+    {
+      "user_id": 28,
+      "balance": 75000000,
+      "idempotency_replayed": true
+    },
+    {
+      "user_id": 29,
+      "balance": 78000000,
+      "idempotency_replayed": true
+    },
+    {
+      "user_id": 30,
+      "balance": 81000000,
+      "idempotency_replayed": true
+    },
+    {
+      "user_id": 31,
+      "balance": 84000000,
+      "idempotency_replayed": true
+    },
+    {
+      "user_id": 32,
+      "balance": 87000000,
+      "idempotency_replayed": true
+    },
+    {
+      "user_id": 33,
+      "balance": 90000000,
+      "idempotency_replayed": true
+    }
+  ],
+  "baskets": [
+    {
+      "user_id": 24,
+      "offer_id": 31,
+      "basket_item_id": 6
+    },
+    {
+      "user_id": 25,
+      "offer_id": 32,
+      "basket_item_id": 8
+    },
+    {
+      "user_id": 26,
+      "offer_id": 33,
+      "basket_item_id": 9
+    },
+    {
+      "user_id": 27,
+      "offer_id": 34,
+      "basket_item_id": 10
+    },
+    {
+      "user_id": 28,
+      "offer_id": 37,
+      "basket_item_id": 11
+    },
+    {
+      "user_id": 29,
+      "offer_id": 38,
+      "basket_item_id": 12
+    },
+    {
+      "user_id": 30,
+      "offer_id": 39,
+      "basket_item_id": 13
+    },
+    {
+      "user_id": 31,
+      "offer_id": 40,
+      "basket_item_id": 14
+    },
+    {
+      "user_id": 32,
+      "offer_id": 41,
+      "basket_item_id": 15
+    },
+    {
+      "user_id": 33,
+      "offer_id": 43,
+      "basket_item_id": 16
+    }
+  ],
+  "checkouts": [
+    {
+      "user_id": 24,
+      "status": 201,
+      "order_ids": [
+        11,
+        12
+      ]
+    },
+    {
+      "user_id": 25,
+      "status": 201,
+      "order_ids": [
+        13
+      ]
+    },
+    {
+      "user_id": 26,
+      "status": 201,
+      "order_ids": [
+        14
+      ]
+    },
+    {
+      "user_id": 27,
+      "status": 201,
+      "order_ids": [
+        15
+      ]
+    },
+    {
+      "user_id": 28,
+      "status": 201,
+      "order_ids": [
+        16
+      ]
+    },
+    {
+      "user_id": 29,
+      "status": 201,
+      "order_ids": [
+        17
+      ]
+    },
+    {
+      "user_id": 30,
+      "status": 201,
+      "order_ids": [
+        18
+      ]
+    },
+    {
+      "user_id": 31,
+      "status": 201,
+      "order_ids": [
+        19
+      ]
+    },
+    {
+      "user_id": 32,
+      "status": 201,
+      "order_ids": [
+        20
+      ]
+    },
+    {
+      "user_id": 33,
+      "status": 201,
+      "order_ids": [
+        21
+      ]
+    }
+  ],
+  "cancellations": [
+    {
+      "order_id": 11,
+      "refund_replay_status": 200
+    },
+    {
+      "order_id": 12,
+      "refund_replay_status": 200
+    }
+  ]
+}

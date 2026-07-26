@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Prefetch, Q
+from django.db.models import Count, F, Q, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiTypes, extend_schema
@@ -16,6 +16,7 @@ from .serializers import (
     OfferDetailSerializer,
     OfferListSerializer,
     OfferUpdateSerializer,
+    StoreOperationalOfferSerializer,
     StoreOwnerSerializer,
     StorePublicDetailSerializer,
     StorePublicListSerializer,
@@ -221,6 +222,91 @@ class MyStoreView(generics.RetrieveUpdateAPIView):
         return user_store(self.request.user)
 
 
+class StoreDashboardView(APIView):
+    permission_classes = [IsStoreOwner]
+
+    @extend_schema(
+        responses=dict,
+        description="Store-only operational summary. Inactive stores receive a restricted state.",
+    )
+    def get(self, request):
+        from django.utils import timezone
+        from shopping.models import BasketItem, Order
+        from shopping.serializers import OrderSummarySerializer
+
+        store = user_store(request.user)
+        base = {
+            "store": {
+                "id": store.pk,
+                "name": store.name,
+                "slug": store.slug,
+                "logo": request.build_absolute_uri(store.logo.url) if store.logo else None,
+                "status": store.status,
+                "rejection_reason": store.rejection_reason or "",
+            },
+            "generated_at": timezone.now(),
+        }
+        if store.status != Store.Status.ACTIVE:
+            return Response({
+                **base,
+                "operational_access": False,
+                "reason": "store_not_active",
+                "offers": None,
+                "orders": None,
+                "recent_orders": [],
+                "recent_offers": [],
+            })
+
+        offers = Offer.objects.filter(store=store)
+        offer_metrics = offers.aggregate(
+            total=Count("pk"),
+            out_of_stock=Count("pk", filter=Q(quantity__lte=0)),
+            unavailable_variant=Count(
+                "pk",
+                filter=Q(quantity__gt=0) & (
+                    Q(device_variant__is_available=False)
+                    | Q(device_variant__device_model__is_catalog_eligible=False)
+                ),
+            ),
+            total_available_units=Sum("quantity"),
+        )
+        public_qs = public_offer_queryset().filter(store=store)
+        active_reserved = BasketItem.objects.filter(
+            offer__store=store, expires_at__gt=timezone.now()
+        ).aggregate(units=Sum("quantity"))["units"] or 0
+        order_counts = {
+            status_value: Order.objects.filter(store=store, status=status_value).count()
+            for status_value, _label in Order.Status.choices
+        }
+        recent_orders = Order.objects.filter(store=store).prefetch_related("items").order_by(
+            "-created_at", "-pk"
+        )[:5]
+        recent_offers = offers.select_related(
+            "device_variant__device_model__brand"
+        ).order_by("-updated_at", "-pk")[:5]
+        return Response({
+            **base,
+            "operational_access": True,
+            "reason": None,
+            "offers": {
+                "total": offer_metrics["total"] or 0,
+                "publicly_available": public_qs.count(),
+                "out_of_stock": offer_metrics["out_of_stock"] or 0,
+                "unavailable_variant": offer_metrics["unavailable_variant"] or 0,
+                "reserved_units": active_reserved,
+                "total_available_units": offer_metrics["total_available_units"] or 0,
+            },
+            "orders": {
+                "paid": order_counts.get(Order.Status.PAID, 0),
+                "completed": order_counts.get(Order.Status.COMPLETED, 0),
+                "cancelled": order_counts.get(Order.Status.CANCELLED, 0),
+                "open": order_counts.get(Order.Status.PAID, 0),
+            },
+            "recent_orders": OrderSummarySerializer(recent_orders, many=True).data,
+            "recent_offers": StoreOperationalOfferSerializer(recent_offers, many=True).data,
+        })
+
+
 class DeviceVariantOfferListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = OfferListSerializer
@@ -254,13 +340,25 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class MyOfferListView(generics.ListAPIView):
     permission_classes = [IsStoreOwner]
-    serializer_class = OfferDetailSerializer
+    serializer_class = StoreOperationalOfferSerializer
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        return Offer.objects.select_related(
+        queryset = Offer.objects.select_related(
             "store", "device_variant__device_model__brand"
-        ).filter(store=user_store(self.request.user)).order_by("-updated_at", "-pk")
+        ).filter(store=user_store(self.request.user))
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(device_variant__device_model__model_name__icontains=search)
+                | Q(device_variant__device_model__brand__name__icontains=search)
+            )
+        stock = self.request.query_params.get("stock")
+        if stock == "available":
+            queryset = queryset.filter(quantity__gt=0)
+        elif stock == "out":
+            queryset = queryset.filter(quantity=0)
+        return queryset.order_by("-updated_at", "-pk")
 
 
 class OfferCreateView(generics.CreateAPIView):

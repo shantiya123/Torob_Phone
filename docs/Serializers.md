@@ -378,13 +378,11 @@ name
 slug
 description
 logo
-business_phone
-business_email
-address
 created_at
 ```
 
-The exact public fields should follow the project's privacy requirements.
+Business phone, business email, and address are private and belong only to the
+Store-owner and Staff-review serializers.
 
 The following must not be exposed publicly:
 

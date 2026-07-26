@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'marketplace',
     'shopping',
     'wallet',
+    'simulation',
 ]
 
 

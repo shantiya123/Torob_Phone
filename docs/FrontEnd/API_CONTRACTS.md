@@ -425,7 +425,8 @@ Query parameters: `search` (optional, case-insensitive match against
 {"id": 12, "brand": "Samsung", "model": "Galaxy M47", "image_url": null, "release_date": "2026-07-04"}
 ```
 
-There is no `variant_count` field.
+There is no `variant_count` field. Store-specific ownership and market context
+is included only in the parent detail response below.
 
 ### Store catalog parent detail (TG012)
 
@@ -439,15 +440,17 @@ There is no `variant_count` field.
 The exact response is the parent fields above plus `variants`. Variants are
 available `DeviceVariant` records and use the compact serializer fields:
 `id`, `brand`, `model_name`, `device_kind`, `image_url`, `storage_gb`,
-`ram_gb`, `storage_technology`, and `is_available`. No price guidance or
-existing-owned-offer information is nested.
+`ram_gb`, `storage_technology`, and `is_available`, plus `owned_offer` (the
+authenticated Store's Offer or `null`) and `market` (`offer_count`,
+`lowest_price`, `highest_price`) calculated from all current public Offers.
+Competitor identity and quantities are never returned.
 
 ### Catalog image/price notes
 
 TG011 is implemented as a nullable normalized parent `image_url`; no absolute
-URL normalization setting is configured beyond DRF URL serialization. TG012
-does not expose active offer counts, min/max/average price guidance, or an
-owned-offer match.
+URL normalization setting is configured beyond DRF URL serialization. Market
+prices use project integer monetary units and return `null` bounds when no
+public Offers exist. The authenticated Store's own eligible Offer is included.
 
 ## 5. Public Store contracts
 
@@ -464,16 +467,15 @@ Each result is `{id, name, slug, logo}`.
 
 ### Public Store detail
 
-**Status:** Implemented (public fields are broader than PAGES recommends)  
+**Status:** Implemented (TG018 privacy boundary)  
 **Method/Path:** `GET /api/stores/{id}/`  
 **Authentication:** Public  
 **Used by pages:** `/stores/[storeId]`
 
 Only active Stores are reachable. Response fields:
-`id`, `name`, `slug`, `description`, `logo`, `business_phone`,
-`business_email`, `address`, and `created_at`. The API therefore exposes
-business contact/address publicly; frontend should not display private legal or
-review fields, but the backend response is not minimal.
+`id`, `name`, `slug`, `description`, `logo`, and `created_at`. Business phone,
+business email, address, owner identity, legal profile, and review metadata are
+private and are not returned by public Store endpoints.
 
 Offers are loaded separately through the Store-scoped endpoint below; Store
 detail does not embed them.
@@ -528,8 +530,24 @@ Inactive Store offers return 404.
 **Allowed roles:** Any Store owner (including non-active)  
 **Used by pages:** `/store/offers`, `/store/dashboard`
 
-Paginated, ordered `-updated_at`, `-pk`. Each item is OfferDetailSerializer
-with the owner's public Store representation.
+Paginated, ordered `-updated_at`, `-pk`. Each item includes the existing Offer
+identity fields plus `publicly_available` and a derived `availability_reason`
+(`store_not_active`, `out_of_stock`, `variant_unavailable`, or
+`device_not_catalog_eligible`). Optional `search` and `stock=available|out`
+filters are supported.
+
+### Store dashboard (TG019)
+
+**Method/Path:** `GET /api/stores/me/dashboard/`  
+**Authentication:** Required  
+**Allowed roles:** Store owner for its linked Store only
+
+Active Stores receive offer counts, currently available units, active
+unexpired reserved units, exact Order-status counts, and up to five recent
+Orders and Offers. No revenue, payout, wallet, customer email, or legal data is
+included. Pending, rejected, and suspended Stores receive a `200` restricted
+response with `operational_access=false`, `reason=store_not_active`, null
+operational metrics, and their onboarding status.
 
 ### Create offer
 
@@ -897,10 +915,10 @@ original review metadata.
 | `/orders/confirmation` | Structured multi-order checkout response, order detail | Implemented |
 | `/wallet` | Balance, transactions, demo charge | Implemented |
 | `/account` | Current user, logout | Partial; current user exists, logout missing |
-| `/store/dashboard` | Current Store, owned offers, optional counts | Partial; no dashboard aggregate |
+| `/store/dashboard` | Store status, metrics, recent Orders/Offers | Implemented via `GET /api/stores/me/dashboard/` |
 | `/store/offers` | Owner offer list, create/delete/update links | Implemented |
 | `/store/catalog` | TG012 parent list/search/pagination | Implemented |
-| `/store/catalog/[phoneId]` | TG012 parent detail/variants, owned offer match, price guidance | Partial; only parent/variants |
+| `/store/catalog/[phoneId]` | Parent detail/variants, owned Offer match, price guidance | Implemented with TG019 context |
 | `/store/offers/new` | Parent/variant context, create offer | Implemented with client-selected variant query |
 | `/store/offers/[offerId]/edit` | Offer detail/update/delete | Implemented |
 | `/store/profile` | Store owner profile, current user | Implemented |
@@ -917,9 +935,8 @@ counts the approved page responsibilities, not merely whether a URL exists.
 | Gap ID | Capability | Required by page(s) | Severity | Recommended action |
 |---|---|---|---|---|
 | TG013 | HttpOnly refresh-cookie flow, rotation/invalidation, logout | `/login`, `/account`, all protected pages | blocking | Add cookie-aware login/refresh/logout and document CORS/SameSite |
-| TG018 | Store catalog detail owned-offer lookup and price guidance | `/store/catalog/[phoneId]` | important | Add nested/related offer summary for current Store |
-| TG019 | Store dashboard aggregate metrics | `/store/dashboard` | optional | Add narrowly scoped efficient summary endpoint if metrics are approved |
-| TG020 | Public Store response privacy | `/stores`, `/stores/[storeId]` | important | Split public detail to exclude business phone/email/address or explicitly approve exposure |
+| TG018 | Public Store privacy and serializer separation | `/stores`, `/stores/[storeId]`, Offers, basket, orders | important | Completed: explicit public, owner, staff, and transactional Store boundaries |
+| TG019 | Store dashboard, catalog ownership, market guidance | `/store/dashboard`, `/store/catalog` | optional | Completed with derived read-only summaries |
 | TG021 | Basket invalid-item/clear-all contract | `/basket` | optional | Add explicit availability state and clear endpoint if UX requires it |
 
 ## 14. OpenAPI comparison

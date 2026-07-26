@@ -1,5 +1,45 @@
 # Architecture Decisions
 
+## Decision: Track simulation ownership with a run and artifact ledger
+
+**Date:** 2026-07-26
+
+### Context
+
+The Backend Simulation and Validation Suite must create realistic marketplace
+data, support multiple independent runs, recover from partial execution, and
+delete only records created by one selected run. Username prefixes and the
+`@example.test` email domain are useful safety checks, but they do not
+unambiguously identify every generated BasketItem, Order, WalletTransaction,
+CheckoutAttempt, or partially created object. Adding a simulation foreign key
+to every business model would make the testing system unnecessarily invasive.
+
+### Decision
+
+Add a simulation-owned `SimulationRun` record for run configuration and
+lifecycle metadata, plus a `SimulationArtifact` ledger containing the model
+label and primary key of every object owned by that run. Generated usernames,
+slugs, and emails will also contain deterministic simulation markers as a
+second cleanup guard.
+
+Existing catalog records and externally supplied Staff fixtures may be reused
+without being recorded as owned artifacts. Cleanup must delete only ledgered
+objects, in dependency-safe order, and must verify both ledger ownership and
+the expected simulation identity marker before deleting identity-bearing
+records.
+
+### Alternatives considered
+
+- Prefixes and email markers without durable ownership records.
+- Adding a `simulation_run` foreign key to every existing domain model.
+
+### Consequences
+
+The suite can clean a specific run after success, failure, or interruption
+without deleting unrelated developer data. It adds two isolated,
+simulation-only models and one migration, but does not change existing API
+contracts or business-domain models.
+
 ## Decision: Keep access tokens in memory and refresh tokens in HttpOnly cookies
 
 **Date:** 2026-07-25

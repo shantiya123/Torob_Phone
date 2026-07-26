@@ -15,3 +15,12 @@ environment tool; Django does not load `.env` files automatically.
 
 Use a strong unique `DJANGO_SECRET_KEY` and set `DJANGO_DEBUG=false` for any
 non-development deployment. Never commit real keys or `.env` files.
+## Django version requirement
+
+The project uses `CheckConstraint(condition=...)`, which requires Django 5.1
+or newer. Install the repository requirements instead of relying on an older
+environment-wide Django version:
+
+```powershell
+python -m pip install --upgrade -r requirements.txt
+```
