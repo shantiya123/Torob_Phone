@@ -16,11 +16,13 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
-  projects: [{
-  name: "chrome",
-  use: {
-    ...devices["Desktop Chrome"],
-    channel: "chrome",
-  },
-}],
+  projects: [
+    {
+      name: "chrome",
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+      },
+    },
+  ],
 });

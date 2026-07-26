@@ -19,10 +19,14 @@ The Django API runs at `http://127.0.0.1:8000`; Next.js runs at
 `http://localhost:3000`. Browser requests that use the backend refresh cookie
 must include credentials; authentication is intentionally outside FE001.
 
-No approved font asset was included in the source archive, so FE001 defines the
-approved Persian fallback stack (`Vazirmatn`, `IRANSansX`, Tahoma, sans-serif)
-without redistributing a font file. The final font asset decision belongs to
-the design-system task.
+FE002 adds the locked semantic design tokens and domain-neutral primitives under
+`src/components/ui`. Run the development server and open `/dev/ui` to review
+deterministic component states. It is intentionally not linked from product
+navigation.
+
+No font asset is redistributed in this repository. The approved Persian stack is
+`Vazirmatn`, `IRANSansX`, Tahoma, sans-serif; licensed WOFF2 files can be added
+later under `src/assets/fonts` with matching `@font-face` declarations.
 
 ## Quality commands
 
@@ -36,4 +40,5 @@ pnpm check
 pnpm build
 ```
 
-No feature pages or API client are implemented in this task group.
+No feature pages, API client, authentication, or backend changes are implemented
+in this task group.
