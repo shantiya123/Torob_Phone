@@ -9,17 +9,25 @@ import type {
 } from "@/types/api";
 import { apiClient, type ApiClient } from "./client";
 import { buildQuery, paginationQuery } from "./query";
-import { paginatedSchema, publicStoreSchema } from "./schemas";
+import {
+  paginatedSchema,
+  publicOfferSchema,
+  publicStoreDetailSchema,
+  publicStoreSchema,
+} from "./schemas";
 
 export const storesApi = {
   list(params: PaginationParams & { search?: string } = {}, client: ApiClient = apiClient) {
     return client.request<PaginatedResponse<PublicStoreListItem>>(
       `stores/${buildQuery({ ...paginationQuery(params), search: params.search })}`,
-      { schema: paginatedSchema(publicStoreSchema) },
+      { next: { revalidate: 60 }, schema: paginatedSchema(publicStoreSchema) },
     );
   },
   detail(storeId: number, client: ApiClient = apiClient) {
-    return client.request<PublicStoreDetail>(`stores/${storeId}/`);
+    return client.request<PublicStoreDetail>(`stores/${storeId}/`, {
+      next: { revalidate: 60 },
+      schema: publicStoreDetailSchema,
+    });
   },
   offers(
     storeId: number,
@@ -28,6 +36,7 @@ export const storesApi = {
   ) {
     return client.request<PaginatedResponse<PublicOffer>>(
       `stores/${storeId}/offers/${buildQuery({ ...paginationQuery(params), ordering: params.ordering })}`,
+      { next: { revalidate: 30 }, schema: paginatedSchema(publicOfferSchema) },
     );
   },
   mine(client: ApiClient = apiClient) {

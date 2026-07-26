@@ -18,6 +18,7 @@ export interface CurrentUser {
   created_at: IsoDateTime | null;
 }
 export interface CustomerRegistrationInput {
+  account_type: "customer";
   username: string;
   email: string;
   password: string;

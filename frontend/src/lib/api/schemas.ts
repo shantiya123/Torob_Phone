@@ -35,6 +35,41 @@ export const publicStoreSchema = z
   })
   .strict();
 
+export const publicStoreDetailSchema = publicStoreSchema
+  .extend({
+    description: z.string(),
+    created_at: z.string(),
+  })
+  .strict();
+
+export const compactVariantSchema = z
+  .object({
+    id: z.number().int().positive(),
+    brand: z.string(),
+    model_name: z.string(),
+    device_kind: z.string(),
+    image_url: z.string().url().nullable(),
+    storage_gb: z.number().int().nonnegative().nullable(),
+    ram_gb: z.number().int().nonnegative().nullable(),
+    storage_technology: z.string().nullable(),
+    is_available: z.boolean(),
+  })
+  .strict();
+
+export const publicOfferSchema = z
+  .object({
+    id: z.number().int().positive(),
+    device_variant: compactVariantSchema,
+    store: publicStoreSchema,
+    price: z.number().int().positive().safe(),
+    quantity: z.number().int().nonnegative(),
+    available: z.boolean(),
+    description: z.string().nullable(),
+    created_at: z.string(),
+    updated_at: z.string(),
+  })
+  .strict();
+
 export const walletSchema = z
   .object({
     id: z.number().int().positive(),

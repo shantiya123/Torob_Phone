@@ -9,7 +9,7 @@ under `src/types/api`. Feature code must use these exports instead of calling
 `NEXT_PUBLIC_API_BASE_URL` must be an HTTP(S) URL ending in one `/api` segment:
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api
 ```
 
 The environment module removes trailing slashes and rejects invalid protocols
@@ -24,6 +24,10 @@ automatically possess the browser refresh cookie.
 
 The access-token provider is an in-memory interface. Tokens must never be stored
 in localStorage, sessionStorage, IndexedDB, or JavaScript-readable cookies.
+
+During local development, use `localhost` for both Next.js and Django. Mixing a
+`localhost` frontend with a `127.0.0.1` API makes the browser treat the
+credentialed refresh-cookie flow as cross-site.
 
 ```ts
 const client = new ApiClient({

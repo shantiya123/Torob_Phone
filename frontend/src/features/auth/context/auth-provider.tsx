@@ -91,6 +91,7 @@ export function AuthProvider({
     async (input: CustomerRegistrationFormValues) => {
       const parsed = customerRegistrationSchema.parse(input);
       const request: CustomerRegistrationInput = {
+        account_type: "customer",
         username: parsed.username,
         email: parsed.email,
         password: parsed.password,

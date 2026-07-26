@@ -57,6 +57,8 @@ role permissions remain backend-enforced.
 
 ## Local development
 
-Use `.env.local` with the API base URL and run Django on
-`http://127.0.0.1:8000`. Production must use HTTPS and the backend's Secure
-cookie configuration.
+Use `.env.local` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api` and
+run Django on `http://localhost:8000`. The frontend also runs on `localhost`.
+Do not mix `localhost` and `127.0.0.1`: the HttpOnly `SameSite=Lax` refresh
+cookie must remain same-site. Production must use HTTPS and the backend's
+Secure cookie configuration.

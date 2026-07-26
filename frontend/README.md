@@ -15,7 +15,7 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-The Django API runs at `http://127.0.0.1:8000`; Next.js runs at
+The Django API runs at `http://localhost:8000`; Next.js runs at
 `http://localhost:3000`. Browser requests that use the backend refresh cookie
 must include credentials; authentication is intentionally outside FE001.
 
@@ -33,9 +33,11 @@ session state and authentication UI. FE004 adds the client auth provider,
 refresh-cookie restoration, customer forms, role resolution, safe redirects,
 and route guards; see [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md).
 
-No font asset is redistributed in this repository. The approved Persian stack is
-`Vazirmatn`, `IRANSansX`, Tahoma, sans-serif; licensed WOFF2 files can be added
-later under `src/assets/fonts` with matching `@font-face` declarations.
+FE007 reserves `src/assets/fonts/iransans` for owner-supplied licensed IranSans
+WOFF2 files. No font asset is redistributed in this repository. Until those
+files are supplied, the global token uses `IranSans`, `IRANSansX`, Tahoma, Arial,
+system-ui, sans-serif as its fallback chain. See
+[`docs/UI_FOUNDATION.md`](docs/UI_FOUNDATION.md).
 
 ## Quality commands
 
@@ -60,3 +62,10 @@ workspace UI arrives in later task groups.
 FE005 adds the reusable public shell, role-aware desktop navigation, mobile
 drawer, footer, route-aware state, accessibility announcer, and subtle route
 transitions. Feature content remains placeholder-only until its task group.
+FE006 implements the public Homepage with a premium abstract Hero, dedicated
+Torobche introduction, marketplace process, one bounded active-Store request,
+partial failure handling, and responsive motion. See
+[`docs/HOMEPAGE.md`](docs/HOMEPAGE.md).
+FE007 implements public Store listing, URL-backed search and pagination,
+Storefront detail, Store Offers ordering, privacy-safe media rendering, and
+the IranSans integration point.

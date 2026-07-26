@@ -22,7 +22,7 @@
   --focus-ring: #e83e4f;
   --overlay: rgb(5 7 10 / 76%);
   --skeleton: #29313a;
-  --font-body: "Vazirmatn", "IRANSansX", Tahoma, sans-serif;
+  --font-body: "IranSans", "IRANSansX", Tahoma, Arial, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --radius-control: 10px;
   --radius-card: 16px;

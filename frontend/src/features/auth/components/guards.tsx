@@ -66,6 +66,5 @@ export function GuestOnly({ children }: { children: ReactNode }) {
   }, [router, status, user]);
   if (status === "initializing") return <AuthLoading />;
   if (status === "authenticated") return null;
-  if (status === "error") return <AuthError />;
   return <>{children}</>;
 }

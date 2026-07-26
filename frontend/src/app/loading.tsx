@@ -1,13 +1,20 @@
+import { Container, Skeleton } from "@/components/ui";
+
 export default function Loading() {
   return (
-    <main
-      aria-busy="true"
-      aria-label="در حال بارگذاری"
-      className="mx-auto flex min-h-[60vh] w-full max-w-5xl flex-col justify-center gap-4 px-6 py-16 sm:px-10"
-    >
-      <div className="h-4 w-28 animate-pulse rounded bg-[var(--color-slate)] motion-reduce:animate-none" />
-      <div className="h-12 max-w-md animate-pulse rounded bg-[var(--color-slate)] motion-reduce:animate-none" />
-      <div className="h-5 max-w-xl animate-pulse rounded bg-[var(--color-slate)] motion-reduce:animate-none" />
+    <main id="main-content" aria-busy="true" aria-label="در حال آماده‌سازی صفحه اصلی">
+      <Container className="grid min-h-[72vh] items-center gap-12 py-12 lg:grid-cols-2">
+        <div className="grid gap-5">
+          <Skeleton className="h-5 w-36 motion-reduce:animate-none" />
+          <Skeleton className="h-16 w-full max-w-xl motion-reduce:animate-none" />
+          <Skeleton className="h-7 w-full max-w-lg motion-reduce:animate-none" />
+          <div className="flex gap-3">
+            <Skeleton className="h-[52px] w-44 motion-reduce:animate-none" />
+            <Skeleton className="h-[52px] w-36 motion-reduce:animate-none" />
+          </div>
+        </div>
+        <Skeleton className="min-h-[360px] rounded-[var(--radius-stage)] motion-reduce:animate-none" />
+      </Container>
     </main>
   );
 }
