@@ -12,3 +12,4 @@ export * from "./staff";
 export * from "./stores";
 export * from "./token";
 export * from "./wallet";
+export * from "./torobche";

@@ -40,6 +40,10 @@ from .serializers import (
     TorobcheStateResponseSerializer,
 )
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class StoreCatalogPhoneListView(generics.ListAPIView):
     """Paginated parent-phone browser used while a Store creates an offer."""
@@ -165,6 +169,7 @@ class SearchView(APIView):
         except (QuerySetValidationError, UnsupportedQuerySetFieldError, ValueError) as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except LLMProviderError:
+            logger.exception("LLM provider call failed")
             # LLM interpretation is optional. The supplied QuerySet remains a
             # deterministic source of filters; otherwise use the empty one.
             query_set = normalize_query_set(base_query_set or empty_query_set())

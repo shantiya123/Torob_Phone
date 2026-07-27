@@ -58,6 +58,15 @@ export function RequireRole({ role, children }: { role: AuthRole; children: Reac
   return <>{children}</>;
 }
 
+export function RequireTorobcheAccess({ children }: { children: ReactNode }) {
+  const { status, user } = useAuth();
+  if (status === "initializing") return <AuthLoading />;
+  if (status === "error") return <AuthError />;
+  if (status !== "authenticated" || !user) return <RequireAuth>{children}</RequireAuth>;
+  if (user.role === "staff") return <Forbidden role="staff" />;
+  return <>{children}</>;
+}
+
 export function GuestOnly({ children }: { children: ReactNode }) {
   const { status, user } = useAuth();
   const router = useRouter();

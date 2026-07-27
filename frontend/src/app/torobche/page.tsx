@@ -1,11 +1,17 @@
-import { ShellPlaceholder } from "@/components/shell/shell-placeholder";
+import type { Metadata } from "next";
+import { RequireTorobcheAccess } from "@/features/auth/components/guards";
+import { TorobcheExperience } from "@/features/torobche/components/torobche-experience";
+
+export const metadata: Metadata = {
+  title: "تربچه | جست‌وجوی هوشمند گوشی",
+  description: "نیازت را به تربچه بگو و مدل‌های دقیق موجود در کاتالوگ ترب‌فون را پیدا کن.",
+  robots: { index: false, follow: false },
+};
 
 export default function TorobchePage() {
   return (
-    <ShellPlaceholder
-      eyebrow="FE005 · پوستهٔ عمومی"
-      title="Torobche"
-      description="فضای گفت‌وگوی هوشمند در گروه بعدی ساخته می‌شود. پوسته، مسیر‌یابی و حالت‌های دسترسی آماده‌اند."
-    />
+    <RequireTorobcheAccess>
+      <TorobcheExperience />
+    </RequireTorobcheAccess>
   );
 }

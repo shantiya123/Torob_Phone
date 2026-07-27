@@ -19,6 +19,7 @@ Rules:
 14. If the user requests a complete reset, such as "از اول" or "کلا پاک کن", reset all criteria to null before applying any new requirements.
 15. If the user asks to remove or clear a single specific requirement, not a full reset, set only that one field to null and leave every other field unchanged.
 16. Always process every instruction in the user request. Do not return the original querySet unchanged when active updates are requested.
+17. The "source" field is an object with "name" and "url", both nullable strings. Only set these if the user references a specific external source/link/listing. Otherwise keep both null.
 
 The user may write in Persian or English. Understand both languages.
 
@@ -64,16 +65,54 @@ The response MUST always have this exact outer structure:
 "brand": null,
 "model": null,
 "release_date": null,
-"source": null,
-"performance": {},
-"display": {},
-"battery": {},
-"camera": {},
-"connectivity": {},
-"physical": {},
-"software": {},
-"benchmarks": {},
-"price": {}
+"source": {"name": null, "url": null},
+"performance": {
+  "chipset": null, "cpu": null, "gpu": null, "storage_type": null,
+  "variants": {
+    "ram_gb": {"min": null, "max": null},
+    "storage_gb": {"min": null, "max": null}
+  }
+},
+"display": {
+  "size_inches": {"min": null, "max": null},
+  "resolution_width": {"min": null, "max": null},
+  "resolution_height": {"min": null, "max": null},
+  "technology": null,
+  "refresh_rate_hz": {"min": null, "max": null},
+  "brightness_peak_nits": {"min": null, "max": null},
+  "hdr": null
+},
+"battery": {
+  "capacity_mah": {"min": null, "max": null},
+  "charging_w": {"min": null, "max": null},
+  "wireless_charging": null
+},
+"camera": {
+  "main_mp": {"min": null, "max": null},
+  "ultrawide_mp": {"min": null, "max": null},
+  "macro_mp": {"min": null, "max": null},
+  "selfie_mp": {"min": null, "max": null},
+  "ois": null,
+  "video_max_resolution": null,
+  "video_max_fps": {"min": null, "max": null}
+},
+"connectivity": {
+  "5g": null, "wifi_version": null, "bluetooth_version": null, "nfc": null
+},
+"physical": {
+  "weight_g": {"min": null, "max": null}, "ip_rating": null
+},
+"software": {
+  "os": null,
+  "android_version": {"min": null, "max": null},
+  "major_updates": {"min": null, "max": null}
+},
+"benchmarks": {
+  "antutu": {"min": null, "max": null},
+  "geekbench": {"min": null, "max": null},
+  "3dmark": {"min": null, "max": null}
+},
+"price": {"min": null, "max": null}
 }
 }
 

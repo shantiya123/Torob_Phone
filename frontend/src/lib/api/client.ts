@@ -72,7 +72,7 @@ export class ApiClient {
   constructor(options: ApiClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? env.apiBaseUrl).replace(/\/+$/, "");
     this.tokenProvider = options.tokenProvider ?? createMemoryTokenProvider();
-    this.fetchImpl = options.fetch ?? fetch;
+    this.fetchImpl = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
     this.logger = options.logger;
   }
 
@@ -144,7 +144,9 @@ export class ApiClient {
       }
       return payload as TResponse;
     } catch (error) {
+        console.error("RAW CAUGHT ERROR:", error?.name, error?.message, error);
       if (error instanceof ApiError) {
+
         this.log(method, path, status, started, error);
         throw error;
       }

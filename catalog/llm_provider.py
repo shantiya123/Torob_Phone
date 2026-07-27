@@ -77,6 +77,11 @@ class GapGptProvider:
                 last_error = exc
                 error_class = LLMProviderTimeoutError
             except (HTTPError, URLError) as exc:
+                if isinstance(exc, HTTPError):
+                    print("DEBUG - HTTP status:", exc.code)
+                    print("DEBUG - Response body:", exc.read().decode("utf-8", errors="replace"))
+                else:
+                    print("DEBUG - URLError reason:", exc.reason)
                 last_error = exc
                 error_class = LLMProviderError
             except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:

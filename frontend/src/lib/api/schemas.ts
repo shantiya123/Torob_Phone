@@ -56,6 +56,124 @@ export const compactVariantSchema = z
   })
   .strict();
 
+const numericRangeSchema = z
+  .object({ min: z.number().nonnegative().nullable(), max: z.number().nonnegative().nullable() })
+  .strict();
+
+export const torobcheQuerySetSchema = z
+  .object({
+    brand: z.string().nullable(),
+    model: z.string().nullable(),
+    release_date: z.string().nullable(),
+    source: z.object({ name: z.string().nullable(), url: z.string().nullable() }).strict(),
+    performance: z
+      .object({
+        chipset: z.string().nullable(),
+        cpu: z.string().nullable(),
+        gpu: z.string().nullable(),
+        storage_type: z.string().nullable(),
+        variants: z.object({ ram_gb: numericRangeSchema, storage_gb: numericRangeSchema }).strict(),
+      })
+      .strict(),
+    display: z
+      .object({
+        size_inches: numericRangeSchema,
+        resolution_width: numericRangeSchema,
+        resolution_height: numericRangeSchema,
+        technology: z.string().nullable(),
+        refresh_rate_hz: numericRangeSchema,
+        brightness_peak_nits: numericRangeSchema,
+        hdr: z.boolean().nullable(),
+      })
+      .strict(),
+    battery: z
+      .object({
+        capacity_mah: numericRangeSchema,
+        charging_w: numericRangeSchema,
+        wireless_charging: z.boolean().nullable(),
+      })
+      .strict(),
+    camera: z
+      .object({
+        main_mp: numericRangeSchema,
+        ultrawide_mp: numericRangeSchema,
+        macro_mp: numericRangeSchema,
+        selfie_mp: numericRangeSchema,
+        ois: z.boolean().nullable(),
+        video_max_resolution: z.string().nullable(),
+        video_max_fps: numericRangeSchema,
+      })
+      .strict(),
+    connectivity: z
+      .object({
+        "5g": z.boolean().nullable(),
+        wifi_version: z.string().nullable(),
+        bluetooth_version: z.string().nullable(),
+        nfc: z.boolean().nullable(),
+      })
+      .strict(),
+    physical: z.object({ weight_g: numericRangeSchema, ip_rating: z.string().nullable() }).strict(),
+    software: z
+      .object({
+        os: z.string().nullable(),
+        android_version: numericRangeSchema,
+        major_updates: numericRangeSchema,
+      })
+      .strict(),
+    benchmarks: z
+      .object({
+        antutu: numericRangeSchema,
+        geekbench: numericRangeSchema,
+        "3dmark": numericRangeSchema,
+      })
+      .strict(),
+    price: numericRangeSchema,
+  })
+  .strict();
+
+export const torobcheResultSchema = compactVariantSchema
+  .extend({ minimum_available_price: nonNegativeMoneySchema.nullable() })
+  .strict();
+
+export const torobcheSearchResponseSchema = z
+  .object({
+    message: z.string(),
+    queryset: torobcheQuerySetSchema,
+    query_set: torobcheQuerySetSchema,
+    count: z.number().int().nonnegative(),
+    next: z.string().url().nullable(),
+    previous: z.string().url().nullable(),
+    results: z.array(torobcheResultSchema),
+    ordering: z.enum([
+      "price_asc",
+      "price_desc",
+      "newest",
+      "oldest",
+      "battery_high",
+      "battery_low",
+    ]),
+    warning: z.string().nullable().optional(),
+    warning_code: z.string().nullable().optional(),
+  })
+  .strict();
+
+export const torobcheStateResponseSchema = z
+  .object({
+    queryset: torobcheQuerySetSchema,
+    query_set: torobcheQuerySetSchema.optional(),
+    has_active_filters: z.boolean(),
+    updated_at: z.string().nullable(),
+  })
+  .strict();
+
+export const torobcheResetResponseSchema = z
+  .object({
+    message: z.string(),
+    queryset: torobcheQuerySetSchema,
+    query_set: torobcheQuerySetSchema.optional(),
+  })
+  .strict();
+
 const optionalSpecificationSchema = z.record(z.string(), z.unknown()).nullable();
 
 export const deviceVariantDetailSchema = compactVariantSchema
