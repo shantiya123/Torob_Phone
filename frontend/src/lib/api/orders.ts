@@ -9,7 +9,7 @@ import type {
 } from "@/types/api";
 import { apiClient, type ApiClient } from "./client";
 import { buildQuery, paginationQuery } from "./query";
-import { checkoutSchema } from "./schemas";
+import { checkoutSchema, orderCancellationResponseSchema, orderDetailSchema, orderListSchema } from "./schemas";
 
 export const ordersApi = {
   checkout(idempotencyKey: string, client: ApiClient = apiClient) {
@@ -25,16 +25,18 @@ export const ordersApi = {
   list(params: PaginationParams & { status?: OrderStatus } = {}, client: ApiClient = apiClient) {
     return client.request<PaginatedResponse<OrderSummary>>(
       `orders/${buildQuery({ ...paginationQuery(params), status: params.status })}`,
-      { auth: true },
+      { auth: true, schema: orderListSchema },
     );
   },
   detail(orderId: number, client: ApiClient = apiClient) {
-    return client.request<Order>(`orders/${orderId}/`, { auth: true });
+    return client.request<Order>(`orders/${orderId}/`, { auth: true, schema: orderDetailSchema });
   },
   cancel(orderId: number, client: ApiClient = apiClient) {
     return client.request<OrderCancellationResponse>(`orders/${orderId}/cancel/`, {
       method: "POST",
       auth: true,
+      json: {},
+      schema: orderCancellationResponseSchema,
     });
   },
   storeList(

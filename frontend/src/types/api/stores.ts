@@ -2,7 +2,7 @@ import type { IsoDateTime, PublicStoreSummary } from "./common";
 
 export type PublicStoreListItem = PublicStoreSummary;
 export interface PublicStoreDetail extends PublicStoreSummary {
-  description: string;
+  description: string | null;
   created_at: IsoDateTime;
 }
 export type StoreStatus = "pending" | "active" | "rejected" | "suspended";

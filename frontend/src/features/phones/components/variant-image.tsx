@@ -7,15 +7,14 @@ const passthroughLoader = ({ src }: ImageLoaderProps) => src;
 export function VariantImage({ variant }: { variant: DeviceVariantDetail }) {
   const source = resolveMediaUrl(variant.image_url) ?? "/icon.svg";
   return (
-    <Image
-      loader={passthroughLoader}
-      unoptimized
-      src={source}
-      alt={`${variant.brand} ${variant.model_name}`}
-      width={640}
-      height={640}
-      priority
-      className="size-full object-contain"
-    />
+   <Image
+  unoptimized
+  src={source}
+  alt={`${variant.brand} ${variant.model_name}`}
+  width={640}
+  height={640}
+  priority
+  className="size-full object-contain"
+/>
   );
 }

@@ -37,7 +37,7 @@ export const publicStoreSchema = z
 
 export const publicStoreDetailSchema = publicStoreSchema
   .extend({
-    description: z.string(),
+    description: z.string().nullable(),
     created_at: z.string(),
   })
   .strict();
@@ -215,17 +215,68 @@ export const walletSchema = z
   })
   .strict();
 
-const orderSummarySchema = z
+export const orderSummarySchema = z
   .object({
     id: z.number().int().positive(),
     status: z.enum(["pending", "paid", "cancelled", "completed"]),
-    store: z.object({ id: z.number().int().positive(), name: z.string() }).passthrough(),
+    store: z.object({ id: z.number().int().positive(), name: z.string() }).strict(),
     item_count: z.number().int().nonnegative(),
     total: nonNegativeMoneySchema,
     created_at: z.string(),
     updated_at: z.string(),
   })
-  .passthrough();
+  .strict();
+
+export const orderListSchema = paginatedSchema(orderSummarySchema);
+
+export const orderVariantSchema = z
+  .object({
+    id: z.number().int().positive(),
+    brand: z.string(),
+    model: z.string(),
+    image_url: z.string().nullable(),
+    ram_gb: z.number().int().nonnegative(),
+    storage_gb: z.number().int().nonnegative(),
+    storage_technology: z.string(),
+  })
+  .strict();
+
+export const orderItemSchema = z
+  .object({
+    id: z.number().int().positive(),
+    offer: z.number().int().positive(),
+    variant: orderVariantSchema,
+    quantity: z.number().int().positive(),
+    unit_price: nonNegativeMoneySchema,
+    line_total: nonNegativeMoneySchema,
+    created_at: z.string(),
+  })
+  .strict();
+
+export const orderDetailSchema = orderSummarySchema
+  .extend({ items: z.array(orderItemSchema) })
+  .strict();
+
+const walletTransactionSchema = z
+  .object({
+    id: z.number().int().positive(),
+    amount: z.number().int(),
+    balance_after: nonNegativeMoneySchema,
+    transaction_type: z.enum(["charge", "purchase", "refund"]),
+    order: z.number().int().positive().nullable(),
+    created_at: z.string(),
+  })
+  .strict();
+
+export const orderCancellationResponseSchema = z
+  .object({
+    order: orderDetailSchema,
+    stock_restored: z.boolean(),
+    refund: walletTransactionSchema.nullable(),
+    refund_created: z.boolean(),
+    wallet_balance: nonNegativeMoneySchema.nullable(),
+  })
+  .strict();
 
 export const checkoutSchema = z
   .object({
@@ -242,3 +293,28 @@ export function parseWithSchema<T>(schema: z.ZodType<T>, value: unknown): T {
   if (!result.success) throw new Error("invalid_api_response");
   return result.data;
 }
+
+export const basketItemSchema = z
+  .object({
+    id: z.number().int().positive(),
+    offer: publicOfferSchema,
+    quantity: z.number().int().positive(),
+    unit_price: nonNegativeMoneySchema,
+    total: nonNegativeMoneySchema,
+    expires_at: z.string(),
+    remaining_seconds: z.number().int().nonnegative(),
+    created_at: z.string(),
+    updated_at: z.string(),
+  })
+  .strict();
+
+export const basketSchema = z
+  .object({
+    id: z.number().int().positive(),
+    items: z.array(basketItemSchema),
+    total: nonNegativeMoneySchema,
+    next_expiration_at: z.string().nullable(),
+    created_at: z.string(),
+    updated_at: z.string(),
+  })
+  .strict();

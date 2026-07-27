@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import { RequireRole } from "@/features/auth/components/guards";
-import { OrderHistoryExperience } from "@/features/orders/components/order-history-experience";
+import { OrderDetailExperience } from "@/features/orders/components/order-detail-experience";
 
 export const metadata: Metadata = {
-  title: "سفارش‌های من | ترب‌فون",
+  title: "جزئیات سفارش | ترب‌فون",
   robots: { index: false, follow: false },
 };
 
-export default function OrdersPage() {
+export default function OrderDetailPage() {
   return (
     <RequireRole role="customer">
-      <OrderHistoryExperience />
+      <OrderDetailExperience />
     </RequireRole>
   );
 }

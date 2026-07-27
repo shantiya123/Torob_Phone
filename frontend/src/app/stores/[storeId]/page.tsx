@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Container, EmptyState, ErrorState } from "@/components/ui";
-import { OfferCard } from "@/features/stores/components/offer-card";
+import { StoreOfferPreview } from "@/features/stores/components/store-offer-preview";
 import { StoreIdentity } from "@/features/stores/components/store-identity";
 import { isApiNotFound, parseStoreId } from "@/features/stores/utils";
 import { storesApi } from "@/lib/api/stores";
@@ -18,7 +16,9 @@ export async function generateMetadata({ params }: { params: RouteParams }): Pro
     const store = await storesApi.detail(storeId);
     return {
       title: `${store.name} | ترب‌فون`,
-      description: store.description.slice(0, 155) || `پیشنهادهای ${store.name} در ترب‌فون.`,
+      ...(store.description?.trim()
+        ? { description: store.description.trim().slice(0, 155) }
+        : {}),
     };
   } catch {
     return { title: "فروشگاه | ترب‌فون" };
@@ -45,39 +45,11 @@ export default async function StorefrontPage({ params }: { params: RouteParams }
   return (
     <main id="main-content">
       <StoreIdentity store={store} />
-      <Container className="py-10 sm:py-14">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="mb-2 text-sm font-semibold text-[var(--accent-radish)]">
-              پیشنهادهای تازه
-            </p>
-            <h2 className="m-0 text-2xl font-bold sm:text-3xl">آخرین پیشنهادها</h2>
-          </div>
-          <Link
-            href={`/stores/${store.id}/offers`}
-            className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[var(--border-strong)] px-4 text-sm font-semibold hover:bg-[var(--surface-interactive)]"
-          >
-            مشاهدهٔ همهٔ پیشنهادها
-          </Link>
-        </div>
-        {offersResult.status === "rejected" ? (
-          <ErrorState
-            title="پیشنهادها بارگذاری نشدند"
-            description="اطلاعات فروشگاه در دسترس است؛ پیشنهادها را کمی بعد دوباره ببینید."
-          />
-        ) : offers && offers.results.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {offers.results.map((offer) => (
-              <OfferCard key={offer.id} offer={offer} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title="پیشنهاد فعالی وجود ندارد"
-            description="این فروشگاه در حال حاضر پیشنهاد قابل خریدی منتشر نکرده است."
-          />
-        )}
-      </Container>
+      <StoreOfferPreview
+        store={store}
+        offers={offers?.results ?? []}
+        failed={offersResult.status === "rejected"}
+      />
     </main>
   );
 }
