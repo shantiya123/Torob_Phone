@@ -1,5 +1,15 @@
 # Architecture Decisions
 
+## Decision: Empty Torobche searches return proposals, never silent relaxations
+
+**Date:** 2026-07-28
+
+Recovery runs only after a successful exact deterministic search returns zero
+variants. TG019 considers only soft adapter-supported fields, tests one change
+per candidate with bounded deterministic ranking, and returns no more than
+three proposals. Original QuerySet persistence remains authoritative until a
+future approved plan-acceptance workflow exists.
+
 ## Decision: Track simulation ownership with a run and artifact ledger
 
 **Date:** 2026-07-26

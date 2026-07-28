@@ -370,6 +370,32 @@ class SearchResultSerializer(DeviceVariantListSerializer):
         return cheapest
 
 
+class RecoveryChangeResponseSerializer(serializers.Serializer):
+    field = serializers.CharField()
+    operation = serializers.CharField()
+    original_value = serializers.JSONField()
+    proposed_value = serializers.JSONField(allow_null=True)
+
+    def to_representation(self, instance):
+        return {
+            "field": instance.field,
+            "operation": instance.operation,
+            "from": instance.original_value,
+            "to": instance.proposed_value,
+        }
+
+
+class RecoveryPlanResponseSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    result_count = serializers.IntegerField()
+    changes = RecoveryChangeResponseSerializer(many=True)
+
+
+class RecoverySearchResponseSerializer(serializers.Serializer):
+    original_result_count = serializers.IntegerField()
+    plans = RecoveryPlanResponseSerializer(many=True)
+
+
 class TorobcheSearchResponseSerializer(serializers.Serializer):
     """Public conversational search response, retaining DRF pagination fields."""
 
@@ -383,6 +409,10 @@ class TorobcheSearchResponseSerializer(serializers.Serializer):
     ordering = serializers.CharField()
     warning = serializers.CharField(required=False, allow_null=True)
     warning_code = serializers.CharField(required=False, allow_null=True)
+    search_mode = serializers.ChoiceField(
+        choices=("recovery_required", "no_safe_recovery"), required=False
+    )
+    recovery = RecoverySearchResponseSerializer(required=False)
 
 
 class TorobcheStateResponseSerializer(serializers.Serializer):

@@ -1,3 +1,5 @@
+import logging
+
 from django.db.models import F, Min, Prefetch, Q
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -19,6 +21,7 @@ from .query_adapter import (
     query_set_to_filter_requirements,
 )
 from .query_service import QuerySetModificationService
+from .recovery_search import RecoverySearchError, SearchRecoveryService
 from .query_set import QuerySetValidationError
 from .query_set import empty_query_set
 from .query_set_storage import (
@@ -33,12 +36,16 @@ from .serializers import (
     ExplanationResponseSerializer,
     SearchRequestSerializer,
     SearchResultSerializer,
+    RecoverySearchResponseSerializer,
     StoreCatalogPhoneDetailSerializer,
     StoreCatalogPhoneSerializer,
     TorobcheResetResponseSerializer,
     TorobcheSearchResponseSerializer,
     TorobcheStateResponseSerializer,
 )
+
+
+logger = logging.getLogger(__name__)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -150,6 +157,7 @@ class SearchView(APIView):
         )
         base_query_set = data.get("query_set") or saved_query_set
         fallback_warning = None
+        recovery_eligible = True
         message = "نتایج بر اساس نیازهای فعلی شما نمایش داده شدند."
         warning_code = None
         try:
@@ -177,6 +185,23 @@ class SearchView(APIView):
             message = "تفسیر پیام جدید موقتاً در دسترس نبود و نتایج بر اساس نیازهای قبلی نمایش داده شدند."
             fallback_warning = message
             warning_code = "llm_interpretation_unavailable"
+            recovery_eligible = False
+
+        exact_results_exist = candidates.exists()
+        recovery = None
+        if recovery_eligible and not exact_results_exist:
+            try:
+                recovery = SearchRecoveryService().generate_plans(original_query_set=query_set)
+                logger.info(
+                    "Torobche recovery plans generated",
+                    extra={
+                        "user_id": request.user.pk,
+                        "candidates_tested": recovery.candidates_tested,
+                        "plans_found": len(recovery.plans),
+                    },
+                )
+            except RecoverySearchError:
+                logger.exception("Torobche recovery planning failed", extra={"user_id": request.user.pk})
 
         candidates = self._ordered(candidates, data["ordering"])
         paginator = self.pagination_class()
@@ -188,6 +213,12 @@ class SearchView(APIView):
         response.data["queryset"] = query_set
         response.data["message"] = message
         response.data["ordering"] = data["ordering"]
+        if recovery is not None:
+            response.data["search_mode"] = "recovery_required" if recovery.plans else "no_safe_recovery"
+            response.data["recovery"] = RecoverySearchResponseSerializer({
+                "original_result_count": 0,
+                "plans": recovery.plans,
+            }).data
         if request.user.is_authenticated:
             save_query_set(request.user, query_set)
         if fallback_warning:

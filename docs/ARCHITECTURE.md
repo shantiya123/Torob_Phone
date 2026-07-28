@@ -1,5 +1,13 @@
 # Architecture Baseline
 
+## TG-019 empty-result recovery search (2026-07-28)
+
+Torobche remains exact-first. After a valid deterministic catalog query returns
+zero results, a stateless service may test bounded, single-field soft-constraint
+alternatives through the existing QuerySet validator, adapter, and filter. It
+returns proposals only; the original saved QuerySet and explanation context are
+never changed automatically.
+
 ## TG-013 PostgreSQL readiness and secure JWT cookies (2026-07-25)
 
 Database selection is environment-based: PostgreSQL is the shared/staging/production target, while SQLite remains an explicit development fallback. Existing Django transactions and model features are portable to PostgreSQL. Authentication continues to use SimpleJWT access Bearer tokens, but refresh tokens are now HttpOnly cookies with rotation, blacklisting, controlled refresh errors, and idempotent logout. CORS uses explicit origins and refresh/logout validate browser Origin/Referer values.

@@ -307,6 +307,12 @@ Each result contains `id`, `brand`, `model_name`, `device_kind`, `image_url`,
 `minimum_available_price` (integer or null). Conversational fallback may add
 `warning` and `warning_code`.
 
+When a valid exact search has `count: 0`, the response may additionally contain
+`search_mode` and `recovery`. `recovery_required` has up to three transparent,
+proposal-only single-field alternatives; `no_safe_recovery` has no safe plan.
+Plans are not applied or stored, and exact successful searches do not include
+these optional fields.
+
 Malformed input and invalid QuerySet structure return `400` with `detail` or
 field errors. GapGPT timeout/upstream failure/invalid provider output is
 caught as a deterministic fallback to the saved/empty QuerySet and normally

@@ -1,5 +1,20 @@
 # Torobche API
 
+## Empty-result recovery proposals (TG019)
+
+`POST /api/search/` remains an exact deterministic search. Only after a valid
+exact query returns zero variants, the response may include `search_mode` and
+`recovery`. `recovery_required` contains up to three proposal-only plans;
+`no_safe_recovery` means no single conservative relaxation produced matches.
+Each plan changes one visible field and reports its expected result count.
+
+TG019 automatically considers only soft, adapter-supported constraints:
+display refresh-rate minimum, display brightness minimum, wireless charging,
+and maximum weight. Brand, storage, price, operating system, RAM, battery,
+camera, IP rating, and all unsupported QuerySet fields are not relaxed.
+Plans are never applied or saved automatically. The saved QuerySet and
+personalized-explanation context remain the original exact request.
+
 Torobche is available only to authenticated customer and store accounts. Staff
 and anonymous requests are rejected. The backend stores the latest validated
 QuerySet per user; the frontend owns visible transcript history in browser
