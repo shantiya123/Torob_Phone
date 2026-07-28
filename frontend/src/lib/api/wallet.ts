@@ -1,4 +1,3 @@
-import { z } from "zod";
 import type {
   PaginatedResponse,
   PaginationParams,
@@ -8,19 +7,11 @@ import type {
 } from "@/types/api";
 import { apiClient, type ApiClient } from "./client";
 import { buildQuery, paginationQuery } from "./query";
-import { moneySchema, walletSchema } from "./schemas";
-
-const transactionSchema = z
-  .object({
-    id: z.number().int().positive(),
-    amount: moneySchema,
-    balance_after: moneySchema,
-    transaction_type: z.enum(["charge", "purchase", "refund"]),
-    order: z.number().int().nullable(),
-    created_at: z.string(),
-  })
-  .strict();
-const chargeSchema = z.object({ wallet: walletSchema, transaction: transactionSchema }).strict();
+import {
+  walletChargeResponseSchema,
+  walletSchema,
+  walletTransactionListSchema,
+} from "./schemas";
 
 export const walletApi = {
   get(client: ApiClient = apiClient) {
@@ -29,7 +20,7 @@ export const walletApi = {
   transactions(params: PaginationParams = {}, client: ApiClient = apiClient) {
     return client.request<PaginatedResponse<WalletTransaction>>(
       `wallet/transactions/${buildQuery(paginationQuery(params))}`,
-      { auth: true },
+      { auth: true, schema: walletTransactionListSchema },
     );
   },
   charge(amount: number, idempotencyKey: string, client: ApiClient = apiClient) {
@@ -39,7 +30,7 @@ export const walletApi = {
       json: { amount },
       idempotencyKey,
       expectedStatuses: [200, 201],
-      schema: chargeSchema,
+      schema: walletChargeResponseSchema,
     });
   },
 };

@@ -7,7 +7,7 @@ import socket
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-
+from django.core.serializers.json import DjangoJSONEncoder
 from .query_prompt import FULL_QUERY_MODIFICATION_PROMPT
 from .provider_response import ProviderResponseError, parse_provider_query_response
 
@@ -52,43 +52,96 @@ class GapGptProvider:
     def _request_content(self, system_prompt, user_payload):
         if not self.api_key:
             raise LLMProviderError("GAPGPT_API_KEY is not configured")
+
         if not self.model:
             raise LLMProviderError("GAPGPT_MODEL is not configured")
-        body = json.dumps({
-            "model": self.model,
-            "temperature": 0,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": json.dumps(user_payload)},
-            ],
-        }).encode("utf-8")
+
+        body = json.dumps(
+            {
+                "model": self.model,
+                "temperature": 0,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": system_prompt,
+                    },
+                    {
+                        "role": "user",
+                        "content": json.dumps(
+                            user_payload,
+                            cls=DjangoJSONEncoder,
+                            ensure_ascii=False,
+                        ),
+                    },
+                ],
+            },
+            ensure_ascii=False,
+        ).encode("utf-8")
+
         request = Request(
-            f"{self.base_url}/chat/completions", data=body,
-            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}, method="POST",
+            f"{self.base_url}/chat/completions",
+            data=body,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
         )
+
         last_error = None
+
         for attempt in range(self.retries + 1):
             try:
                 with urlopen(request, timeout=self.timeout) as response:
-                    payload = json.loads(response.read().decode("utf-8"))
-                content = payload["choices"][0]["message"]["content"]
-                break
+                    response_payload = json.loads(
+                        response.read().decode("utf-8")
+                    )
+
+                content = response_payload["choices"][0]["message"]["content"]
+                return content
+
             except (TimeoutError, socket.timeout) as exc:
                 last_error = exc
                 error_class = LLMProviderTimeoutError
+
             except (HTTPError, URLError) as exc:
                 if isinstance(exc, HTTPError):
-                    print("DEBUG - HTTP status:", exc.code)
-                    print("DEBUG - Response body:", exc.read().decode("utf-8", errors="replace"))
+                    logger.warning(
+                        "GapGpt returned HTTP status %s.",
+                        exc.code,
+                    )
                 else:
-                    print("DEBUG - URLError reason:", exc.reason)
+                    logger.warning(
+                        "GapGpt connection failed: %s.",
+                        type(exc.reason).__name__,
+                    )
+
                 last_error = exc
                 error_class = LLMProviderError
-            except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
-                raise LLMProviderError("GapGpt returned an invalid response.") from exc
+
+            except (
+                    KeyError,
+                    IndexError,
+                    TypeError,
+                    json.JSONDecodeError,
+            ) as exc:
+                raise LLMProviderError(
+                    "GapGpt returned an invalid response."
+                ) from exc
+
             if attempt == self.retries:
-                raise error_class("GapGpt request timed out." if error_class is LLMProviderTimeoutError else "GapGpt request failed.") from last_error
-            # Do not log the request, URL query string, response body, or API key.
-            logger.warning("GapGpt request attempt %s/%s failed; retrying.", attempt + 1, self.retries + 1)
+                message = (
+                    "GapGpt request timed out."
+                    if error_class is LLMProviderTimeoutError
+                    else "GapGpt request failed."
+                )
+                raise error_class(message) from last_error
+
+            logger.warning(
+                "GapGpt request attempt %s/%s failed; retrying.",
+                attempt + 1,
+                self.retries + 1,
+            )
             time.sleep(self.backoff * (2 ** attempt))
-        return content
+
+        raise LLMProviderError("GapGpt request failed.")

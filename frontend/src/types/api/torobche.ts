@@ -92,3 +92,9 @@ export interface TorobcheResetResponse {
 export type TorobcheSearchInput =
   | { message: string; ordering?: TorobcheOrdering }
   | { query_set: TorobcheQuerySet; ordering?: TorobcheOrdering };
+
+export interface PersonalizedExplanationResponse {
+  phone_id: number;
+  description: string | null;
+  error?: string | undefined;
+}

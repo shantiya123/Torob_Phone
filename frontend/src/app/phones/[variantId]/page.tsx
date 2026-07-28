@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Container, DateDisplay, EmptyState, ErrorState } from "@/components/ui";
-import { Pagination } from "@/features/stores/components/pagination";
-import { OfferComparison } from "@/features/phones/components/offer-comparison";
+import { Container, DateDisplay } from "@/components/ui";
+import { PersonalizedExplanationSection } from "@/features/phones/components/personalized-explanation-section";
+import { VariantOffersSection } from "@/features/phones/components/variant-offers-section";
 import { SpecificationOverview } from "@/features/phones/components/specification-overview";
 import { VariantImage } from "@/features/phones/components/variant-image";
 import {
-  VARIANT_OFFER_PAGE_SIZE,
   isNotFoundError,
   parseVariantId,
   parseVariantOrdering,
   parseVariantPage,
 } from "@/features/phones/utils";
 import { catalogApi } from "@/lib/api/catalog";
+import type { DeviceVariantDetail } from "@/types/api";
 
 type Params = Promise<{ variantId: string }>;
 type SearchParams = Promise<{ page?: string; ordering?: string }>;
@@ -53,21 +53,13 @@ export default async function VariantPage({
   const page = parseVariantPage(query.page);
   const ordering = parseVariantOrdering(query.ordering);
 
-  const [variantResult, offersResult] = await Promise.allSettled([
-    catalogApi.variant(id),
-    catalogApi.variantOffers(id, {
-      page,
-      pageSize: VARIANT_OFFER_PAGE_SIZE,
-      ordering,
-    }),
-  ]);
-
-  if (variantResult.status === "rejected") {
-    if (isNotFoundError(variantResult.reason)) notFound();
-    throw variantResult.reason;
+  let variant: DeviceVariantDetail;
+  try {
+    variant = await catalogApi.variant(id);
+  } catch (error) {
+    if (isNotFoundError(error)) notFound();
+    throw error;
   }
-  const variant = variantResult.value;
-  const offers = offersResult.status === "fulfilled" ? offersResult.value : null;
   const title = `${variant.brand} ${variant.model_name}`;
 
   return (
@@ -147,71 +139,11 @@ export default async function VariantPage({
           </div>
         </section>
 
-        <SpecificationOverview variant={variant} />
+        <PersonalizedExplanationSection variantId={id} />
 
-        <section aria-labelledby="offers-heading" className="mt-12">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="mb-2 text-sm font-semibold text-[var(--accent-radish)]">مقایسهٔ قیمت</p>
-              <h2 id="offers-heading" className="m-0 text-2xl font-bold">
-                فروشگاه‌های ارائه‌دهنده
-              </h2>
-            </div>
-            {offers && offers.results.length > 0 && (
-              <form method="get" className="flex items-end gap-3">
-                <label htmlFor="offer-ordering" className="grid gap-2 text-sm font-semibold">
-                  مرتب‌سازی
-                  <select
-                    id="offer-ordering"
-                    name="ordering"
-                    defaultValue={ordering}
-                    className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface-primary)] px-3 text-sm"
-                  >
-                    <option value="price">کمترین قیمت</option>
-                    <option value="price_desc">بیشترین قیمت</option>
-                  </select>
-                </label>
-                <input type="hidden" name="page" value="1" />
-                <button
-                  type="submit"
-                  className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-strong)] px-4 text-sm font-semibold hover:bg-[var(--surface-interactive)]"
-                >
-                  اعمال
-                </button>
-              </form>
-            )}
-          </div>
-          {offersResult.status === "rejected" ? (
-            <ErrorState
-              title="پیشنهادها بارگذاری نشدند"
-              description="مشخصات گوشی در دسترس است؛ پیشنهادها را کمی بعد دوباره امتحان کنید."
-            />
-          ) : offersResult.value.results.length === 0 ? (
-            <EmptyState
-              title="پیشنهاد فعالی وجود ندارد"
-              description="در حال حاضر فروشگاهی برای این پیکربندی پیشنهاد عمومی ندارد."
-              action={
-                <Link
-                  href="/stores"
-                  className="font-semibold text-[var(--accent-radish)] underline"
-                >
-                  مشاهدهٔ فروشگاه‌ها
-                </Link>
-              }
-            />
-          ) : (
-            <>
-              <OfferComparison offers={offersResult.value.results} variantId={id} />
-              <Pagination
-                page={page}
-                pageSize={VARIANT_OFFER_PAGE_SIZE}
-                total={offersResult.value.count}
-                query={{ ordering }}
-                basePath={`/phones/${id}`}
-              />
-            </>
-          )}
-        </section>
+        <VariantOffersSection variantId={id} page={page} ordering={ordering} />
+
+        <SpecificationOverview variant={variant} />
       </Container>
     </main>
   );

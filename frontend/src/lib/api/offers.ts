@@ -1,4 +1,5 @@
 import type {
+  CreatedOfferResponse,
   OfferWriteRequest,
   OperationalOffer,
   PaginatedResponse,
@@ -6,11 +7,12 @@ import type {
   PublicOffer,
 } from "@/types/api";
 import { apiClient, type ApiClient } from "./client";
+import { createdOfferResponseSchema, operationalOfferListSchema, publicOfferDetailSchema } from "./schemas";
 import { buildQuery, paginationQuery } from "./query";
 
 export const offersApi = {
   detail(offerId: number, client: ApiClient = apiClient) {
-    return client.request<PublicOffer>(`offers/${offerId}/`);
+    return client.request<PublicOffer>(`offers/${offerId}/`, { schema: publicOfferDetailSchema });
   },
   mine(
     params: PaginationParams & { search?: string; stock?: "available" | "out" } = {},
@@ -18,7 +20,7 @@ export const offersApi = {
   ) {
     return client.request<PaginatedResponse<OperationalOffer>>(
       `stores/me/offers/${buildQuery({ ...paginationQuery(params), search: params.search, stock: params.stock })}`,
-      { auth: true },
+      { auth: true, schema: operationalOfferListSchema },
     );
   },
   create(
@@ -26,11 +28,12 @@ export const offersApi = {
       Pick<OfferWriteRequest, "description">,
     client: ApiClient = apiClient,
   ) {
-    return client.request<PublicOffer, typeof body>("offers/", {
+    return client.request<CreatedOfferResponse, typeof body>("offers/", {
       method: "POST",
       auth: true,
       json: body,
       expectedStatuses: [201],
+      schema: createdOfferResponseSchema,
     });
   },
   update(

@@ -17,13 +17,11 @@ export function RegisterForm() {
     defaultValues: { username: "", email: "", password: "", password_confirm: "" },
   });
   const onSubmit = form.handleSubmit(async (values) => {
-      console.log("API base:", process.env.NEXT_PUBLIC_API_BASE_URL);
     try {
       await registerCustomer(values);
       form.reset();
       router.replace("/login?registered=1");
     } catch (error) {
-        console.error("FULL ERROR:", error);
       const fieldErrors = getFieldErrors(error);
       for (const [field, messages] of Object.entries(fieldErrors)) {
         if (field === "username" || field === "email" || field === "password")

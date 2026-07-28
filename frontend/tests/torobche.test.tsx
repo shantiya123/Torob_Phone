@@ -104,6 +104,8 @@ const customerAuth: AuthContextValue = {
     throw new Error("not used");
   },
   registerCustomer: async () => undefined,
+  updateEmail: async () => { throw new Error("not used"); },
+  refreshCurrentUser: async () => { throw new Error("not used"); },
   logout: async () => undefined,
   refreshSession: async () => null,
   hasRole: (role) => role === "customer",

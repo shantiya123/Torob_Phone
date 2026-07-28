@@ -1,10 +1,8 @@
 import Link from "next/link";
-import Image, { type ImageLoaderProps } from "next/image";
+import Image from "next/image";
 import type { PublicOffer } from "@/types/api";
 import { Badge, Card, CardContent, CardHeader, CardTitle, PriceDisplay } from "@/components/ui";
 import { resolveMediaUrl } from "@/lib/media";
-
-const passthroughLoader = ({ src }: ImageLoaderProps) => src;
 
 function VariantImage({ offer }: { offer: PublicOffer }) {
   const mediaUrl = resolveMediaUrl(offer.device_variant.image_url);
@@ -12,7 +10,6 @@ function VariantImage({ offer }: { offer: PublicOffer }) {
   const alt = mediaUrl ? `تصویر ${offer.device_variant.model_name}` : "";
   return (
     <Image
-      loader={passthroughLoader}
       unoptimized
       src={source}
       alt={alt}

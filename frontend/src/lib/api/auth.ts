@@ -4,11 +4,13 @@ import type {
   CurrentUser,
   CustomerRegistrationInput,
   CustomerRegistrationResponse,
+  StoreRegistrationInput,
+  StoreRegistrationResponse,
   LoginRequest,
   LogoutResponse,
 } from "@/types/api";
 import { apiClient, type ApiClient } from "./client";
-import { accessTokenSchema, currentUserSchema } from "./schemas";
+import { accessTokenSchema, currentUserSchema, storeRegistrationResponseSchema } from "./schemas";
 
 export const authApi = {
   async login(credentials: LoginRequest, client: ApiClient = apiClient) {
@@ -37,6 +39,17 @@ export const authApi = {
         method: "POST",
         json: input,
         expectedStatuses: [201],
+      },
+    );
+  },
+  registerStore(input: StoreRegistrationInput, client: ApiClient = apiClient) {
+    return client.request<StoreRegistrationResponse, StoreRegistrationInput>(
+      "auth/register/",
+      {
+        method: "POST",
+        json: input,
+        expectedStatuses: [201],
+        schema: storeRegistrationResponseSchema,
       },
     );
   },

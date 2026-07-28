@@ -11,9 +11,10 @@ import { apiClient, type ApiClient } from "./client";
 import { buildQuery, paginationQuery } from "./query";
 import {
   paginatedSchema,
-  publicOfferSchema,
+  publicOfferDetailSchema,
   publicStoreDetailSchema,
   publicStoreSchema,
+  storeDashboardSchema,
 } from "./schemas";
 
 export const storesApi = {
@@ -36,7 +37,7 @@ export const storesApi = {
   ) {
     return client.request<PaginatedResponse<PublicOffer>>(
       `stores/${storeId}/offers/${buildQuery({ ...paginationQuery(params), ordering: params.ordering })}`,
-      { next: { revalidate: 30 }, schema: paginatedSchema(publicOfferSchema) },
+      { next: { revalidate: 30 }, schema: paginatedSchema(publicOfferDetailSchema) },
     );
   },
   mine(client: ApiClient = apiClient) {
@@ -58,6 +59,9 @@ export const storesApi = {
     });
   },
   dashboard(client: ApiClient = apiClient) {
-    return client.request<StoreDashboardResponse>("stores/me/dashboard/", { auth: true });
+    return client.request<StoreDashboardResponse>("stores/me/dashboard/", {
+      auth: true,
+      schema: storeDashboardSchema,
+    });
   },
 };

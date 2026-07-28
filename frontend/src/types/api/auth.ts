@@ -32,3 +32,41 @@ export interface CustomerRegistrationResponse {
 export interface LogoutResponse {
   detail: string;
 }
+
+export type StoreApprovalStatus = "pending" | "active" | "rejected" | "suspended";
+
+export interface StoreRegistrationInput {
+  account_type: "store";
+  username: string;
+  email: string;
+  password: string;
+  store: {
+    name: string;
+    description?: string | null;
+    business_phone: string;
+    business_email?: string | null;
+    address: string;
+  };
+  legal_profile: {
+    legal_name: string;
+    business_type: string;
+    business_registration_number?: string | null;
+    national_identifier?: string | null;
+    tax_identifier?: string | null;
+    legal_representative_name: string;
+    legal_representative_national_identifier?: string | null;
+  };
+}
+
+export interface StoreRegistrationResponse {
+  id: number;
+  username: string;
+  email: string;
+  account_type: "store";
+  store: {
+    id: number;
+    name: string;
+    slug: string;
+    status: StoreApprovalStatus;
+  };
+}

@@ -144,9 +144,7 @@ export class ApiClient {
       }
       return payload as TResponse;
     } catch (error) {
-        console.error("RAW CAUGHT ERROR:", error?.name, error?.message, error);
       if (error instanceof ApiError) {
-
         this.log(method, path, status, started, error);
         throw error;
       }

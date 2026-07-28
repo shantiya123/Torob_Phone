@@ -101,6 +101,25 @@ export function AuthProvider({
     [client],
   );
 
+  const refreshCurrentUser = useCallback(async () => {
+    const resolved = resolveAuthenticatedUser(await authApi.getCurrentUser(client));
+    setUser(resolved);
+    setStatus("authenticated");
+    setError(null);
+    return resolved;
+  }, [client]);
+
+  const updateEmail = useCallback(
+    async (email: string) => {
+      const resolved = resolveAuthenticatedUser(await authApi.updateCurrentUser(email, client));
+      setUser(resolved);
+      setStatus("authenticated");
+      setError(null);
+      return resolved;
+    },
+    [client],
+  );
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout(client);
@@ -118,7 +137,9 @@ export function AuthProvider({
     error,
     login,
     registerCustomer,
+    updateEmail,
     logout,
+    refreshCurrentUser,
     refreshSession,
     hasRole: (role: AuthenticatedUser["role"]) => status === "authenticated" && user?.role === role,
   };

@@ -16,6 +16,8 @@ const errorContext: AuthContextValue = {
   error: { message: "The network request failed.", retryable: true },
   login: vi.fn(),
   registerCustomer: vi.fn(),
+  updateEmail: vi.fn(),
+  refreshCurrentUser: vi.fn(),
   logout: vi.fn(),
   refreshSession: vi.fn(),
   hasRole: () => false,

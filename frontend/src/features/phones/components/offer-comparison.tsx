@@ -20,9 +20,11 @@ import { useAuth } from "@/features/auth/context/auth-context";
 export function OfferComparison({
   offers,
   variantId,
+  highlightLowest = true,
 }: {
   offers: PublicOffer[];
   variantId: number;
+  highlightLowest?: boolean;
 }) {
   const { status, user } = useAuth();
   const [selectedId, setSelectedId] = useState<number | null>(offers[0]?.id ?? null);
@@ -66,7 +68,7 @@ export function OfferComparison({
   }
 
   if (!offers.length) return null;
-  const lowestId = offers[0]?.id;
+  const lowestId = highlightLowest ? offers[0]?.id : null;
   return (
     <section aria-labelledby="comparison-heading" className="mt-8">
       <div className="mb-5">
@@ -112,7 +114,10 @@ export function OfferComparison({
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
-                    <Badge tone="success">موجود</Badge>
+                    <Badge tone={offer.available ? "success" : "warning"}>
+                      {offer.available ? "موجود" : "ناموجود"}
+                    </Badge>
+                    <span>موجودی فروشگاه: <bdi dir="ltr">{offer.quantity}</bdi></span>
                     {offer.description && <span className="line-clamp-2">{offer.description}</span>}
                   </div>
                 </div>
@@ -151,7 +156,7 @@ export function OfferComparison({
               <button
                 type="button"
                 onClick={() => void addToBasket()}
-                disabled={pending}
+                disabled={pending || !selected.available || selected.quantity < 1}
                 className="min-h-11 rounded-[var(--radius-control)] bg-[var(--accent-radish)] px-5 font-semibold text-[var(--text-inverse)] disabled:opacity-60"
               >
                 {pending

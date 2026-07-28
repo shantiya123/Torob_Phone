@@ -1,10 +1,8 @@
-import Image, { type ImageLoaderProps } from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, PriceDisplay } from "@/components/ui";
 import { resolveMediaUrl } from "@/lib/media";
 import type { TorobcheResult } from "@/types/api";
-
-const passthroughLoader = ({ src }: ImageLoaderProps) => src;
 
 export function TorobcheResults({ results }: { results: TorobcheResult[] }) {
   return (
@@ -15,8 +13,7 @@ export function TorobcheResults({ results }: { results: TorobcheResult[] }) {
           <Card key={variant.id} className="overflow-hidden">
             <div className="grid aspect-[4/3] place-items-center bg-[var(--surface-secondary)] p-5">
               <Image
-                loader={passthroughLoader}
-                unoptimized
+                          unoptimized
                 src={source}
                 alt={`${variant.brand} ${variant.model_name}`}
                 width={320}

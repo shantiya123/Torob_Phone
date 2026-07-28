@@ -10,7 +10,9 @@ export interface AuthContextValue {
   error: AuthErrorState | null;
   login(input: LoginFormValues): Promise<AuthenticatedUser>;
   registerCustomer(input: CustomerRegistrationFormValues): Promise<void>;
+  updateEmail(email: string): Promise<AuthenticatedUser>;
   logout(): Promise<void>;
+  refreshCurrentUser(): Promise<AuthenticatedUser>;
   refreshSession(): Promise<AuthenticatedUser | null>;
   hasRole(role: AuthRole): boolean;
 }

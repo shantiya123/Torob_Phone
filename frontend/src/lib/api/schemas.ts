@@ -48,7 +48,7 @@ export const compactVariantSchema = z
     brand: z.string(),
     model_name: z.string(),
     device_kind: z.string(),
-    image_url: z.string().url().nullable(),
+    image_url: z.string().nullable(),
     storage_gb: z.number().int().nonnegative().nullable(),
     ram_gb: z.number().int().nonnegative().nullable(),
     storage_technology: z.string().nullable(),
@@ -174,6 +174,16 @@ export const torobcheResetResponseSchema = z
   })
   .strict();
 
+export const personalizedExplanationSchema = z
+  .object({
+    phone_id: z.number().int().positive(),
+    description: z.string().nullable(),
+    error: z.string().nullable().optional(),
+    code: z.string().optional(),
+    detail: z.string().optional(),
+  })
+  .strict();
+
 const optionalSpecificationSchema = z.record(z.string(), z.unknown()).nullable();
 
 export const deviceVariantDetailSchema = compactVariantSchema
@@ -201,10 +211,37 @@ export const publicOfferSchema = z
     quantity: z.number().int().nonnegative(),
     available: z.boolean(),
     description: z.string().nullable(),
+  })
+  .strict();
+
+export const publicOfferDetailSchema = publicOfferSchema
+  .extend({
     created_at: z.string(),
     updated_at: z.string(),
   })
   .strict();
+
+export const operationalOfferSchema = z
+  .object({
+    id: z.number().int().positive(),
+    device_variant: compactVariantSchema,
+    store: publicStoreSchema,
+    price: z.number().int().positive().safe(),
+    quantity: z.number().int().nonnegative(),
+    publicly_available: z.boolean(),
+    availability_reason: z
+      .enum([
+        "store_not_active",
+        "out_of_stock",
+        "variant_unavailable",
+        "device_not_catalog_eligible",
+      ])
+      .nullable(),
+    updated_at: z.string(),
+  })
+  .strict();
+
+export const operationalOfferListSchema = paginatedSchema(operationalOfferSchema);
 
 export const walletSchema = z
   .object({
@@ -257,7 +294,7 @@ export const orderDetailSchema = orderSummarySchema
   .extend({ items: z.array(orderItemSchema) })
   .strict();
 
-const walletTransactionSchema = z
+export const walletTransactionSchema = z
   .object({
     id: z.number().int().positive(),
     amount: z.number().int(),
@@ -266,6 +303,13 @@ const walletTransactionSchema = z
     order: z.number().int().positive().nullable(),
     created_at: z.string(),
   })
+  .strict();
+
+
+export const walletTransactionListSchema = paginatedSchema(walletTransactionSchema);
+
+export const walletChargeResponseSchema = z
+  .object({ wallet: walletSchema, transaction: walletTransactionSchema })
   .strict();
 
 export const orderCancellationResponseSchema = z
@@ -316,5 +360,130 @@ export const basketSchema = z
     next_expiration_at: z.string().nullable(),
     created_at: z.string(),
     updated_at: z.string(),
+  })
+  .strict();
+
+
+export const storeCatalogPhoneSchema = z
+  .object({
+    id: z.number().int().positive(),
+    brand: z.string(),
+    model: z.string(),
+    image_url: z.string().nullable(),
+    release_date: z.string().nullable(),
+  })
+  .strict();
+
+export const storeCatalogVariantSchema = compactVariantSchema
+  .extend({
+    owned_offer: z
+      .object({
+        id: z.number().int().positive(),
+        price: moneySchema,
+        quantity: z.number().int().nonnegative(),
+        publicly_available: z.boolean(),
+        updated_at: z.string(),
+      })
+      .strict()
+      .nullable(),
+    market: z
+      .object({
+        offer_count: z.number().int().nonnegative(),
+        lowest_price: nonNegativeMoneySchema.nullable(),
+        highest_price: nonNegativeMoneySchema.nullable(),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const storeCatalogPhoneDetailSchema = storeCatalogPhoneSchema
+  .extend({ variants: z.array(storeCatalogVariantSchema) })
+  .strict();
+
+export const storeDashboardSchema = z.discriminatedUnion("operational_access", [
+  z
+    .object({
+      store: z
+        .object({
+          id: z.number().int().positive(),
+          name: z.string(),
+          slug: z.string(),
+          logo: z.string().nullable(),
+          status: z.enum(["pending", "active", "rejected", "suspended"]),
+          rejection_reason: z.string(),
+        })
+        .strict(),
+      generated_at: z.string(),
+      operational_access: z.literal(false),
+      reason: z.literal("store_not_active"),
+      offers: z.null(),
+      orders: z.null(),
+      recent_orders: z.array(z.unknown()),
+      recent_offers: z.array(z.unknown()),
+    })
+    .strict(),
+  z
+    .object({
+      store: z
+        .object({
+          id: z.number().int().positive(),
+          name: z.string(),
+          slug: z.string(),
+          logo: z.string().nullable(),
+          status: z.literal("active"),
+          rejection_reason: z.string(),
+        })
+        .strict(),
+      generated_at: z.string(),
+      operational_access: z.literal(true),
+      reason: z.null(),
+      offers: z
+        .object({
+          total: z.number().int().nonnegative(),
+          publicly_available: z.number().int().nonnegative(),
+          out_of_stock: z.number().int().nonnegative(),
+          unavailable_variant: z.number().int().nonnegative(),
+          reserved_units: z.number().int().nonnegative(),
+          total_available_units: z.number().int().nonnegative(),
+        })
+        .strict(),
+      orders: z
+        .object({
+          paid: z.number().int().nonnegative(),
+          completed: z.number().int().nonnegative(),
+          cancelled: z.number().int().nonnegative(),
+          open: z.number().int().nonnegative(),
+        })
+        .strict(),
+      recent_orders: z.array(z.unknown()),
+      recent_offers: z.array(z.unknown()),
+    })
+    .strict(),
+]);
+
+export const createdOfferResponseSchema = z
+  .object({
+    id: z.number().int().positive(),
+    device_variant: z.number().int().positive(),
+    price: moneySchema.positive(),
+    quantity: z.number().int().nonnegative(),
+    description: z.string().nullable(),
+  })
+  .strict();
+
+export const storeRegistrationResponseSchema = z
+  .object({
+    id: z.number().int().positive(),
+    username: z.string(),
+    email: z.string().email(),
+    account_type: z.literal("store"),
+    store: z
+      .object({
+        id: z.number().int().positive(),
+        name: z.string(),
+        slug: z.string(),
+        status: z.enum(["pending", "active", "rejected", "suspended"]),
+      })
+      .strict(),
   })
   .strict();
