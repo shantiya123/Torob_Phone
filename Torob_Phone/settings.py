@@ -166,6 +166,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.getenv('DJANGO_STATIC_ROOT', str(BASE_DIR / 'staticfiles'))
+
+# https://docs.djangoproject.com/en/5.0/topics/files/
+MEDIA_URL = 'media/'
+MEDIA_ROOT = os.getenv('DJANGO_MEDIA_ROOT', str(BASE_DIR / 'media'))
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -210,12 +216,13 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = _env_list("CSRF_TRUSTED_ORIGINS")
 JWT_AUTH_TRUSTED_ORIGINS = set(CORS_ALLOWED_ORIGINS + CSRF_TRUSTED_ORIGINS)
 
+CORS_ALLOW_HEADERS = (
+    *default_headers,
+    "idempotency-key",
+)
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
 
-CORS_ALLOW_HEADERS = (
-    *default_headers,
-    "idempotency-key",
-)
