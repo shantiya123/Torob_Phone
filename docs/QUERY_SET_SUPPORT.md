@@ -26,6 +26,6 @@ TG-005 defines the stable LLM-facing QuerySet contract. The adapter maps only fi
 | `software.android_version.min`, `major_updates.min` | Yes / incomplete | Yes | Supported; Android version requires canonical platform `Android`. |
 | `software.os`, software max bounds | Yes | No | Unsupported; the existing deterministic filter exposes Android minima only. |
 | `benchmarks.*` | Yes / frequently missing | No | Unsupported. Benchmark versions are absent in current data, so comparison semantics are not safe yet. |
-| `price.min`, `price.max` | No | No | Explicitly unsupported. There are no offer or price models. |
+| `price.min`, `price.max` | Yes | Yes | Supported through eligible public marketplace offers. `price` is handled as non-negative integer money values and is filtered through public offer visibility rules. |
 
 Unsupported conditions are preserved in the QuerySet contract for future development, but they cannot be used to obtain catalog candidates in TG-005.

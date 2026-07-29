@@ -10,3 +10,7 @@ frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/
 frontend/.env.local
+_write_test.txt
+_write_test2.txt
+catalog/filtering.tmp
+torob_update.tar.gz

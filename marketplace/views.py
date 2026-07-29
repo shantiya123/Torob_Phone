@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from api_pagination import StandardResultsSetPagination
 from api_permissions import IsApprovedStore, IsStaffUser, IsStoreOwner, OwnsOffer, user_store
+from marketplace.querysets import public_offer_queryset
 
 from .models import Offer, Store
 from .serializers import (
@@ -24,19 +25,6 @@ from .serializers import (
     StoreReviewQueueSerializer,
     StoreReviewRejectSerializer,
 )
-
-
-def public_offer_queryset():
-    """Canonical public Offer eligibility rules shared by public endpoints."""
-
-    return Offer.objects.select_related(
-        "store", "device_variant__device_model__brand"
-    ).filter(
-        store__status=Store.Status.ACTIVE,
-        quantity__gt=0,
-        device_variant__is_available=True,
-        device_variant__device_model__is_catalog_eligible=True,
-    )
 
 
 class _StaffStoreReviewQuerysetMixin:

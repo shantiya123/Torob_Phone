@@ -7,10 +7,10 @@ reinterpret endpoints. `PAGES.md`, `FRONTEND_BASE.md`, and
 
 Status labels mean:
 
-- **Implemented** — a reachable route and serializer/view behavior were verified.
-- **Partial** — a related implementation exists but does not satisfy the approved page contract.
-- **Missing** — no current route/implementation was found.
-- **Uncertain** — static inspection cannot prove runtime behavior.
+- **Implemented** â€” a reachable route and serializer/view behavior were verified.
+- **Partial** â€” a related implementation exists but does not satisfy the approved page contract.
+- **Missing** â€” no current route/implementation was found.
+- **Uncertain** â€” static inspection cannot prove runtime behavior.
 
 ## 1. API overview
 
@@ -287,7 +287,7 @@ Request is either a conversational message, or a complete validated
 `query_set`, plus optional ordering:
 
 ```json
-{"message": "یک گوشی سامسونگ با رم حداقل 8 گیگ می‌خواهم", "ordering": "newest"}
+{"message": "ÛŒÚ© Ú¯ÙˆØ´ÛŒ Ø³Ø§Ù…Ø³ÙˆÙ†Ú¯ Ø¨Ø§ Ø±Ù… Ø­Ø¯Ø§Ù‚Ù„ 8 Ú¯ÛŒÚ¯ Ù…ÛŒâ€ŒØ®ÙˆØ§Ù‡Ù…", "ordering": "newest"}
 ```
 
 or:
@@ -307,11 +307,12 @@ Each result contains `id`, `brand`, `model_name`, `device_kind`, `image_url`,
 `minimum_available_price` (integer or null). Conversational fallback may add
 `warning` and `warning_code`.
 
-When a valid exact search has `count: 0`, the response may additionally contain
-`search_mode` and `recovery`. `recovery_required` has up to three transparent,
-proposal-only single-field alternatives; `no_safe_recovery` has no safe plan.
+When a valid exact search has `count: 0`, Torobche may still run the recovery
+planner internally, but the frontend-facing response stays backward-compatible
+with the existing schema. Recovery hints are surfaced through `warning` and
+`warning_code`; the response does not require new recovery fields.
 Plans are not applied or stored, and exact successful searches do not include
-these optional fields.
+recovery hints.
 
 Malformed input and invalid QuerySet structure return `400` with `detail` or
 field errors. GapGPT timeout/upstream failure/invalid provider output is
@@ -348,7 +349,7 @@ When no row exists, the endpoint creates and returns the all-null template.
 Request body is empty. Success `200`:
 
 ```json
-{"message": "نیازهای قبلی را پاک کردم تا از ابتدا شروع کنیم.", "query_set": {}, "queryset": {}}
+{"message": "Ù†ÛŒØ§Ø²Ù‡Ø§ÛŒ Ù‚Ø¨Ù„ÛŒ Ø±Ø§ Ù¾Ø§Ú© Ú©Ø±Ø¯Ù… ØªØ§ Ø§Ø² Ø§Ø¨ØªØ¯Ø§ Ø´Ø±ÙˆØ¹ Ú©Ù†ÛŒÙ….", "query_set": {}, "queryset": {}}
 ```
 
 There is no `DELETE`; frontend must use POST.
@@ -819,7 +820,7 @@ transaction. This is not a real payment gateway.
 
 `StoreReviewSerializer` exists and defines fields `id`, `status`,
 `rejection_reason`, `reviewed_by`, and `reviewed_at`. Its allowed transitions
-are pending → active/rejected, rejected → pending, and no transitions from
+are pending â†’ active/rejected, rejected â†’ pending, and no transitions from
 active. Rejection requires a non-empty reason. The serializer sets reviewer
 and timestamp from the request.
 
@@ -848,12 +849,12 @@ not used by public or Store-owner routes.
 ### Decisions
 
 `POST /api/staff/store-reviews/{storeId}/approve/` accepts `{}` and atomically
-transitions `pending → active`, records `reviewed_by` and `reviewed_at`, and
+transitions `pending â†’ active`, records `reviewed_by` and `reviewed_at`, and
 clears `rejection_reason`.
 
 `POST /api/staff/store-reviews/{storeId}/reject/` accepts
 `{"rejection_reason": "..."}`. The reason is trimmed and must not be blank;
-the action atomically transitions `pending → rejected` and records reviewer
+the action atomically transitions `pending â†’ rejected` and records reviewer
 and timestamp.
 
 Both actions lock the Store row with `select_for_update()`. A conflicting
